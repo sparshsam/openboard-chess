@@ -1,6 +1,6 @@
 # Chess by Sparsh
 
-**Repository:** openboard-chess
+**Repository:** chess-by-sparsh
 
 > Open-source chess board focused on clean local play, accurate rules, move history, and portable game records.
 

@@ -56,4 +56,4 @@ The visible product name is always:
 Chess by Sparsh
 ```
 
-Use `openboard-chess` only as the technical repository slug or internal key where necessary.
+Use `chess-by-sparsh` only as the technical repository slug or internal key where necessary.

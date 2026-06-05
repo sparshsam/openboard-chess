@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import type { Square } from 'chess.js';
 import type { PromotionChoice } from '../types';
@@ -6,18 +6,71 @@ import type { Difficulty, GameMode } from '../computer/types';
 import { getComputerMove } from '../computer/computerOpponent';
 import { saveGame, loadGame, clearGame, saveSettings, loadSettings } from '../utils/storage';
 
+interface InitBundle {
+  game: Chess;
+  fen: string;
+  history: string[];
+  status: string;
+  gameMode: GameMode;
+  difficulty: Difficulty;
+}
+
+function buildInitStatus(g: Chess): string {
+  const turn = g.turn() === 'w' ? 'White' : 'Black';
+  if (g.isCheckmate()) return `Checkmate! ${turn === 'White' ? 'Black' : 'White'} wins!`;
+  if (g.isStalemate()) return 'Stalemate! The game is a draw.';
+  if (g.isDraw()) return 'Draw!';
+  if (g.isCheck()) return `${turn} is in check`;
+  return `${turn} to move`;
+}
+
+/** Lazily initialize all game state from localStorage (runs once). */
+function createInitBundle(): InitBundle {
+  const game = new Chess();
+  const saved = loadGame();
+  let fen = game.fen();
+  let history: string[] = [];
+  const settings = loadSettings();
+
+  if (saved) {
+    try {
+      game.load(saved.fen);
+      fen = game.fen();
+      history = saved.history;
+    } catch {
+      // Saved state invalid, use fresh game
+    }
+  }
+
+  return {
+    game,
+    fen,
+    history,
+    status: buildInitStatus(game),
+    gameMode: settings?.gameMode ?? 'pvc',
+    difficulty: settings?.difficulty ?? 'beginner',
+  };
+}
+
 export function useChessGame() {
-  const [game] = useState(() => new Chess());
-  const [fen, setFen] = useState(game.fen());
-  const [history, setHistory] = useState<string[]>([]);
+  const [bundle] = useState(createInitBundle);
+  const {
+    game,
+    fen: initialFen,
+    history: initialHistory,
+    status: initialStatus,
+    gameMode: initialGameMode,
+    difficulty: initialDifficulty,
+  } = bundle;
+
+  const [fen, setFen] = useState(initialFen);
+  const [history, setHistory] = useState(initialHistory);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalMoves, setLegalMoves] = useState<Square[]>([]);
   const [pendingPromotion, setPendingPromotion] = useState<PromotionChoice | null>(null);
-  const [status, setStatus] = useState<string>('White to move');
-
-  // Game mode and difficulty
-  const [gameMode, setGameModeState] = useState<GameMode>('pvc');
-  const [difficulty, setDifficultyState] = useState<Difficulty>('beginner');
+  const [status, setStatus] = useState(initialStatus);
+  const [gameMode, setGameModeState] = useState<GameMode>(initialGameMode);
+  const [difficulty, setDifficultyState] = useState<Difficulty>(initialDifficulty);
   const [isThinking, setIsThinking] = useState(false);
 
   const thinkingRef = useRef(false);
@@ -77,35 +130,6 @@ export function useChessGame() {
     }, 200);
   }, [game, difficulty, updateState]);
 
-  // Restore saved game and settings on mount
-  useEffect(() => {
-    const saved = loadGame();
-    if (saved) {
-      try {
-        game.load(saved.fen);
-        setFen(saved.fen);
-        setHistory(saved.history);
-        updateState();
-      } catch {
-        // Saved state is invalid, start fresh
-      }
-    }
-
-    const settings = loadSettings();
-    if (settings) {
-      setGameModeState(settings.gameMode);
-      setDifficultyState(settings.difficulty);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // After state updates, check if computer should move
-  useEffect(() => {
-    if (gameMode === 'pvc' && game.turn() === 'b' && !game.isGameOver()) {
-      triggerComputerMove();
-    }
-  }, [fen, gameMode, triggerComputerMove, game]);
-
   const selectSquare = useCallback(
     (square: Square) => {
       if (isThinking || thinkingRef.current) return;
@@ -135,6 +159,9 @@ export function useChessGame() {
           setSelectedSquare(null);
           setLegalMoves([]);
           updateState();
+          if (gameMode === 'pvc' && game.turn() === 'b' && !game.isGameOver()) {
+            triggerComputerMove();
+          }
           return;
         }
 
@@ -149,7 +176,7 @@ export function useChessGame() {
         setLegalMoves([]);
       }
     },
-    [game, selectedSquare, updateState, isThinking, gameMode],
+    [game, selectedSquare, updateState, isThinking, gameMode, triggerComputerMove],
   );
 
   const promote = useCallback(
@@ -160,8 +187,11 @@ export function useChessGame() {
       setSelectedSquare(null);
       setLegalMoves([]);
       updateState();
+      if (gameMode === 'pvc' && game.turn() === 'b' && !game.isGameOver()) {
+        triggerComputerMove();
+      }
     },
-    [game, pendingPromotion, updateState],
+    [game, pendingPromotion, updateState, gameMode, triggerComputerMove],
   );
 
   const cancelPromotion = useCallback(() => {
