@@ -3,6 +3,7 @@ import MoveHistory from './components/MoveHistory';
 import GameControls from './components/GameControls';
 import PromotionDialog from './components/PromotionDialog';
 import StatusBar from './components/StatusBar';
+import ModeSelector from './components/ModeSelector';
 import { useChessGame } from './hooks/useChessGame';
 import './App.css';
 
@@ -15,12 +16,17 @@ export default function App() {
     selectedSquare,
     legalMoves,
     pendingPromotion,
+    gameMode,
+    difficulty,
+    isThinking,
     selectSquare,
     promote,
     cancelPromotion,
     newGame,
     exportFen,
     importFen,
+    setGameMode,
+    setDifficulty,
   } = useChessGame();
 
   return (
@@ -38,10 +44,22 @@ export default function App() {
               legalMoves={legalMoves}
               onSquareClick={selectSquare}
             />
+            {isThinking && (
+              <div className="thinking-indicator">
+                <span className="thinking-dot" />
+                Computer is thinking…
+              </div>
+            )}
             <StatusBar status={status} fen={fen} />
           </div>
 
           <div className="sidebar">
+            <ModeSelector
+              gameMode={gameMode}
+              difficulty={difficulty}
+              onGameModeChange={setGameMode}
+              onDifficultyChange={setDifficulty}
+            />
             <GameControls
               onNewGame={newGame}
               onExportFen={exportFen}
