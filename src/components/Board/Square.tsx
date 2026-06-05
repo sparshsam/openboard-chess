@@ -1,5 +1,5 @@
 import type { Square as ChessSquare } from 'chess.js';
-import Piece from './Piece';
+import Piece from '../Piece/Piece';
 
 export interface PieceInfo {
   color: 'w' | 'b';

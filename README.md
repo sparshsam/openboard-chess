@@ -1,8 +1,8 @@
 # Chess by Sparsh
 
-**Chess by Sparsh** is a local-first chess board for two-player play, accurate rule validation, move history, and portable game records.
+**Chess by Sparsh** is a local-first chess board with an optional computer opponent, accurate rule validation, move history, and portable game records.
 
-[Live demo](https://openboard-chess.vercel.app/) · [Repository](https://github.com/sparshsam/openboard-chess)
+[Live demo](https://chess-by-sparsh.vercel.app/) · [Repository](https://github.com/sparshsam/chess-by-sparsh)
 
 ---
 
@@ -10,31 +10,31 @@
 
 | Field | Value |
 |---|---|
-| Version | `v0.1.0` |
-| Status | Live MVP |
-| Repository slug | `openboard-chess` |
+| Version | `v0.2.0` |
+| Status | Live |
+| Repository slug | `chess-by-sparsh` |
 | Deployment | Vercel |
 | Runtime model | Client-side web app |
-| Primary mode | Local two-player chess |
-| Storage | Browser localStorage |
-
-This repository is intentionally focused. The first release prioritizes correctness, clarity, and a stable local play loop over platform-scale features.
+| Primary modes | Local two-player and user vs computer |
+| Computer levels | Beginner (~800), Casual (~1000), Club (~1400) |
+| Storage | Browser localStorage (game state + settings) |
 
 ---
 
 ## Purpose
 
-Chess by Sparsh is a restrained, open-source chess board implementation. It is built to provide a readable and maintainable local chess experience with:
+Chess by Sparsh provides a readable and maintainable local chess experience with:
 
 - accurate legal move handling;
-- a simple custom board interface;
+- a computer opponent with three difficulty bands;
+- a clean settings panel for game mode, difficulty, and board orientation;
 - portable game state through FEN;
-- durable browser-local persistence;
+- durable browser-local persistence for game state and preferences;
 - a clear foundation for future improvements.
 
 ---
 
-## v0.1.0 Features
+## v0.2.0 Features
 
 | Capability | Status |
 |---|---:|
@@ -46,32 +46,44 @@ Chess by Sparsh is a restrained, open-source chess board implementation. It is b
 | Castling, en passant, check, checkmate, stalemate, and draw handling | Complete |
 | Pawn promotion dialog | Complete |
 | Algebraic move history | Complete |
-| FEN export | Complete |
-| FEN import | Complete |
+| FEN export / import | Complete |
 | Browser-local game persistence | Complete |
 | Responsive layout | Complete |
 | Rule-focused test coverage | Complete |
+| **Computer opponent (3 levels)** | **Complete** |
+| **Settings panel** | **Complete** |
+| **Game mode switching** | **Complete** |
+| **Board orientation setting** | **Complete** |
+| **Settings persistence** | **Complete** |
+
+### Computer Opponent
+
+| Difficulty | Rating | Behavior |
+|---|---|---|
+| Beginner | ~800 | Random legal moves with center/piece-value weighting. Makes occasional blunders. |
+| Casual | ~1000 | 1-ply minimax with piece-square evaluation. Captures hanging pieces, avoids hanging own pieces. |
+| Club | ~1400 | 2-ply alpha-beta search with material evaluation, piece-square tables, mobility, and king safety. |
+
+> Rating-inspired skill bands, not official Elo ratings.
 
 ---
 
-## Deliberately Out of Scope for v0.1.0
+## Deliberately Out of Scope
 
 The following are intentionally deferred:
 
 - online multiplayer;
 - user accounts;
-- AI opponent or Stockfish integration;
+- Stockfish or other external engine integration;
 - engine analysis;
 - ratings, matchmaking, ladders, or tournaments;
 - server-side database storage;
 - drag-and-drop movement;
 - PGN import/export;
 - undo or takeback;
-- board flip;
+- board flip (beyond orientation setting);
 - clocks or timed play;
 - sound effects or animations.
-
-These are deferred to keep the MVP stable and understandable.
 
 ---
 
@@ -83,6 +95,7 @@ These are deferred to keep the MVP stable and understandable.
 | Build tool | Vite |
 | Chess rules | `chess.js` |
 | Board UI | Custom-rendered board |
+| AI | Heuristic minimax (no external engines) |
 | Testing | Vitest + Testing Library |
 | Persistence | localStorage |
 | Deployment | Vercel |
@@ -93,15 +106,25 @@ These are deferred to keep the MVP stable and understandable.
 
 ```text
 .
-├── public/
+├── .github/
+│   ├── workflows/ci.yml
+│   ├── pull_request_template.md
+│   └── ISSUE_TEMPLATE/
+│       ├── bug_report.md
+│       └── feature_request.md
 ├── src/
+│   ├── app/               — App.tsx, App.css, main.tsx, main.css
+│   ├── chess/             — AI engine (computer, evaluate, PST, difficulty)
 │   ├── components/
-│   ├── hooks/
-│   ├── test/
-│   ├── types/
-│   ├── utils/
-│   ├── App.tsx
-│   └── main.tsx
+│   │   ├── Board/         — Board.tsx, Square.tsx
+│   │   ├── Game/          — MoveHistory.tsx, StatusBar.tsx
+│   │   ├── GameControls/  — GameControls.tsx
+│   │   ├── Piece/         — Piece.tsx
+│   │   ├── PromotionDialog/ — PromotionDialog.tsx
+│   │   └── Settings/      — SettingsPanel, ModeSelector, DifficultySelector
+│   ├── hooks/             — useChessGame.ts, useSettings.ts
+│   ├── lib/               — storage.ts
+│   └── types/             — types.ts
 ├── index.html
 ├── package.json
 ├── tsconfig*.json
@@ -157,15 +180,16 @@ npm run lint
 
 ## Game State
 
-Chess by Sparsh stores the current local game in the browser using `localStorage`.
+Chess by Sparsh stores the current local game and user settings in the browser using `localStorage`.
 
-The saved state includes:
+Saved data includes:
 
 - current FEN;
 - move history;
-- save timestamp.
+- save timestamp;
+- user preferences (game mode, difficulty, board orientation).
 
-Clearing browser site data will remove the saved game.
+Clearing browser site data will remove saved state and settings.
 
 ---
 
@@ -184,10 +208,10 @@ Clearing browser site data will remove the saved game.
 | Version | Direction |
 |---|---|
 | `v0.1.x` | Stabilize local play, tests, accessibility, and small UX refinements |
-| `v0.2.0` | PGN support, saved game list, board orientation controls |
-| `v0.3.0` | Optional clocks and timed local games |
-| `v0.4.0` | Optional engine-assisted analysis with clear labeling |
-| `v0.5.0` | Optional online play after design boundaries are documented |
+| `v0.2.x` | PGN support, saved game list, board orientation controls |
+| `v0.3.x` | Optional clocks and timed local games |
+| `v0.4.x` | Optional engine-assisted analysis with clear labeling |
+| `v0.5.x` | Optional online play after design boundaries are documented |
 
 No roadmap item should be treated as promised until it is implemented, tested, and released.
 
@@ -198,7 +222,7 @@ No roadmap item should be treated as promised until it is implemented, tested, a
 Agents working on this repository should follow these rules:
 
 - Keep the visible product name as **Chess by Sparsh**.
-- Use `openboard-chess` only as the technical repository slug or internal key where necessary.
+- Use `chess-by-sparsh` as the technical repository slug and package name.
 - Do not add online multiplayer, accounts, engine analysis, payments, or backend services without an explicit decision record.
 - Keep chess rules delegated to a mature rules library rather than reimplementing rules casually.
 - Preserve local-first behavior unless a future release deliberately changes scope.
@@ -211,7 +235,7 @@ Agents working on this repository should follow these rules:
 
 The public demo is deployed on Vercel:
 
-https://openboard-chess.vercel.app/
+https://chess-by-sparsh.vercel.app/
 
 For manual deployment through the Vercel CLI:
 

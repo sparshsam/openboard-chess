@@ -5,9 +5,13 @@
 }
 
 .app-header {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
+  position: relative;
 }
 
 .app-header h1 {
@@ -16,6 +20,24 @@
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.01em;
+}
+
+.settings-toggle-btn {
+  position: absolute;
+  right: 1rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.settings-toggle-btn:hover {
+  background: var(--bg-alt);
+  border-color: var(--accent-light);
 }
 
 .app-main {
@@ -155,6 +177,14 @@
   border-radius: 6px;
   width: 100%;
   max-width: min(60vh, 60vw, 480px);
+}
+
+.status-mode {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .status-text {
