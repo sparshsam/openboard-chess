@@ -1,40 +1,89 @@
-# Chess by Sparsh
-
-**Chess by Sparsh** is a local-first chess board with an optional computer opponent, accurate rule validation, move history, and portable game records.
-
-[Live demo](https://chess-by-sparsh.vercel.app/) · [Repository](https://github.com/sparshsam/chess-by-sparsh)
+<div align="center">
+  <br />
+  <img src="assets/screenshots/chess-main.png" alt="Chess by Sparsh — Board" width="720" style="border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);" />
+  <br /><br />
+  <h1>Chess by Sparsh</h1>
+  <p><em>A local-first chess board with accurate rule validation and a calm, readable interface.</em></p>
+  <p><strong>Play the computer or a friend. No accounts, no backend, no telemetry.</strong></p>
+  <br />
+  <div>
+    <img src="https://img.shields.io/badge/version-v0.2.0-green" alt="Version" />
+    <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
+    <img src="https://img.shields.io/badge/React-20232A?logo=react" alt="React" />
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Vite-646CFF?logo=vite" alt="Vite" />
+    <img src="https://img.shields.io/badge/Vitest-6E9F18?logo=vitest" alt="Vitest" />
+    <img src="https://img.shields.io/badge/Vercel-000000?logo=vercel" alt="Vercel" />
+  </div>
+  <br />
+  <p>
+    <a href="https://chess-by-sparsh.vercel.app" target="_blank"><strong>Live Demo →</strong></a>
+    &nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="#quick-start"><strong>Quick Start</strong></a>
+    &nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="#features"><strong>Features</strong></a>
+    &nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="#computer-opponent"><strong>Computer Opponent</strong></a>
+    &nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="#architecture"><strong>Architecture</strong></a>
+  </p>
+  <br />
+</div>
 
 ---
 
-## Status
+## What is Chess by Sparsh?
 
-| Field | Value |
-|---|---|
-| Version | `v0.2.0` |
-| Status | Live |
-| Repository slug | `chess-by-sparsh` |
-| Deployment | Vercel |
-| Runtime model | Client-side web app |
-| Primary modes | Local two-player and user vs computer |
-| Computer levels | Beginner (~800), Casual (~1000), Club (~1400) |
-| Storage | Browser localStorage (game state + settings) |
+Chess by Sparsh is a **local-first chess board** built for clean, focused play. It supports both human-vs-human and human-vs-computer modes with three rating-inspired difficulty bands — all inside a simple browser app with no backend, no accounts, and no telemetry.
 
----
+The product is designed around one idea: chess should be easy to start, locally owned, and free from platform noise.
 
-## Purpose
+### What it IS:
+- A clean browser-based chess board with legal move highlighting
+- User vs Computer mode with three difficulty bands
+- Local Two Player mode on the same device
+- FEN import and export for portable game state
+- Browser-local persistence (game state + preferences)
+- Accurate chess rule validation via chess.js
+- A settings panel for game mode, difficulty, and board orientation
 
-Chess by Sparsh provides a readable and maintainable local chess experience with:
-
-- accurate legal move handling;
-- a computer opponent with three difficulty bands;
-- a clean settings panel for game mode, difficulty, and board orientation;
-- portable game state through FEN;
-- durable browser-local persistence for game state and preferences;
-- a clear foundation for future improvements.
+### What it IS NOT:
+- Not an online multiplayer platform
+- Not a Stockfish or engine analysis tool
+- Not a rating or tournament system
+- Not a subscription or paid service
+- Not a data collection / telemetry system
+- Not a mobile app (responsive web only)
 
 ---
 
-## v0.2.0 Features
+## Quick Start
+
+### Requirements
+- Node.js 20+ and npm
+
+### Install & run
+```bash
+npm install
+npm run dev
+```
+
+### Build & preview
+```bash
+npm run build
+npm run preview
+```
+
+### Test & lint
+```bash
+npm test
+npm run lint
+```
+
+---
+
+## Features
 
 | Capability | Status |
 |---|---:|
@@ -43,7 +92,7 @@ Chess by Sparsh provides a readable and maintainable local chess experience with
 | Click-to-select movement | Complete |
 | Legal move highlighting | Complete |
 | Legal move validation through `chess.js` | Complete |
-| Castling, en passant, check, checkmate, stalemate, and draw handling | Complete |
+| Castling, en passant, check, checkmate, stalemate, draw handling | Complete |
 | Pawn promotion dialog | Complete |
 | Algebraic move history | Complete |
 | FEN export / import | Complete |
@@ -58,36 +107,103 @@ Chess by Sparsh provides a readable and maintainable local chess experience with
 
 ### Computer Opponent
 
-| Difficulty | Rating | Behavior |
+| Difficulty | ~Rating | Behavior |
 |---|---|---|
-| Beginner | ~800 | Random legal moves with center/piece-value weighting. Makes occasional blunders. |
-| Casual | ~1000 | 1-ply minimax with piece-square evaluation. Captures hanging pieces, avoids hanging own pieces. |
-| Club | ~1400 | 2-ply alpha-beta search with material evaluation, piece-square tables, mobility, and king safety. |
+| Beginner | 800 | Weighted random — center preference, capture bonus, occasional blunders |
+| Casual | 1000 | 1-ply minimax — captures hanging pieces, avoids blunders |
+| Club | 1400 | 2-ply alpha-beta — material evaluation, piece-square tables, mobility, king safety |
 
 > Rating-inspired skill bands, not official Elo ratings.
 
 ---
 
-## Deliberately Out of Scope
+## Architecture
 
-The following are intentionally deferred:
+Chess by Sparsh is a single-page React application with no backend dependencies. All game logic runs client-side.
 
-- online multiplayer;
-- user accounts;
-- Stockfish or other external engine integration;
-- engine analysis;
-- ratings, matchmaking, ladders, or tournaments;
-- server-side database storage;
-- drag-and-drop movement;
-- PGN import/export;
-- undo or takeback;
-- board flip (beyond orientation setting);
-- clocks or timed play;
-- sound effects or animations.
+**Data flow:** User interaction → React event handler → chess.js rule validation → state update via hooks → React re-render → board display.
+
+**AI pipeline:** Game state → difficulty adapter → evaluation function → minimax search (alpha-beta at Club level) → move selection → promise-based async delay → board update.
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    React App                         │
+│                                                      │
+│  ┌──────────┐   ┌──────────────┐   ┌─────────────┐  │
+│  │  Board    │   │  GameControls │   │  StatusBar   │  │
+│  │ + Square  │   │  MoveHistory │   │              │  │
+│  └─────┬────┘   └──────┬───────┘   └──────┬──────┘  │
+│        │              │                   │           │
+│  ┌─────┴──────────────┴───────────────────┴──────┐   │
+│  │             useChessGame hook                  │   │
+│  │  (state + computer scheduling + persistence)    │   │
+│  └─────┬─────────────────────────────────────────┘   │
+│        │                                              │
+│  ┌─────┴─────────────────────────────────────────┐   │
+│  │             chess.js rules library             │   │
+│  │   (moves, validation, game-over detection)     │   │
+│  └───────────────────────────────────────────────┘   │
+│                                                      │
+│  ┌──────────────┐   ┌──────────────┐                │
+│  │  AI Engine   │   │  localStorage │                │
+│  │  minimax     │   │  (save/load)  │                │
+│  │  evaluate    │   └──────────────┘                │
+│  │  PST         │                                   │
+│  └──────────────┘                                   │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Technology
+## Project Principles
+
+1. **Correctness before novelty** — rules and state handling matter more than feature volume.
+2. **Small surface area** — the app should remain easy to inspect, test, and maintain.
+3. **Local-first by default** — local play should not require a backend service.
+4. **Portable records** — FEN support should make game state easy to move and inspect.
+5. **Restrained claims** — this is a chess board, not a chess engine or rating system.
+
+---
+
+## Repository Structure
+
+```text
+.
+├── .github/
+│   ├── workflows/ci.yml
+│   ├── FUNDING.yml
+│   ├── pull_request_template.md
+│   └── ISSUE_TEMPLATE/
+│       ├── bug_report.md
+│       └── feature_request.md
+├── assets/
+│   └── screenshots/
+│       └── chess-main.png
+├── src/
+│   ├── app/                  — App.tsx, App.css, main.tsx, main.css
+│   ├── chess/                — AI engine (computer, evaluate, PST, difficulty)
+│   ├── components/
+│   │   ├── Board/            — Board.tsx, Square.tsx
+│   │   ├── Game/             — MoveHistory.tsx, StatusBar.tsx
+│   │   ├── GameControls/     — GameControls.tsx
+│   │   ├── Piece/            — Piece.tsx
+│   │   ├── PromotionDialog/  — PromotionDialog.tsx
+│   │   └── Settings/         — SettingsPanel, ModeSelector, DifficultySelector
+│   ├── hooks/                — useChessGame.ts, useSettings.ts
+│   ├── lib/                  — storage.ts
+│   └── types/                — types.ts
+├── ARCHITECTURE.md
+├── ROADMAP.md
+├── CHANGELOG.md
+├── AGENTS.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+└── package.json
+```
+
+---
+
+## Tech Stack
 
 | Layer | Choice |
 |---|---|
@@ -102,104 +218,23 @@ The following are intentionally deferred:
 
 ---
 
-## Repository Structure
+## Deliberately Out of Scope
 
-```text
-.
-├── .github/
-│   ├── workflows/ci.yml
-│   ├── pull_request_template.md
-│   └── ISSUE_TEMPLATE/
-│       ├── bug_report.md
-│       └── feature_request.md
-├── src/
-│   ├── app/               — App.tsx, App.css, main.tsx, main.css
-│   ├── chess/             — AI engine (computer, evaluate, PST, difficulty)
-│   ├── components/
-│   │   ├── Board/         — Board.tsx, Square.tsx
-│   │   ├── Game/          — MoveHistory.tsx, StatusBar.tsx
-│   │   ├── GameControls/  — GameControls.tsx
-│   │   ├── Piece/         — Piece.tsx
-│   │   ├── PromotionDialog/ — PromotionDialog.tsx
-│   │   └── Settings/      — SettingsPanel, ModeSelector, DifficultySelector
-│   ├── hooks/             — useChessGame.ts, useSettings.ts
-│   ├── lib/               — storage.ts
-│   └── types/             — types.ts
-├── index.html
-├── package.json
-├── tsconfig*.json
-└── vite.config.ts
-```
+The following are intentionally deferred:
 
----
+- Online multiplayer
+- User accounts
+- Stockfish or other external engine integration
+- Engine analysis
+- Ratings, matchmaking, ladders, or tournaments
+- Server-side database storage
+- PGN import / export
+- Undo or takeback
+- Clocks or timed play
+- Sound effects or animations
+- Drag-and-drop movement
 
-## Local Development
-
-### Requirements
-
-- Node.js 20 or newer recommended
-- npm
-
-### Install
-
-```bash
-npm install
-```
-
-### Run locally
-
-```bash
-npm run dev
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-### Preview production build
-
-```bash
-npm run preview
-```
-
-### Test
-
-```bash
-npm test
-```
-
-### Lint
-
-```bash
-npm run lint
-```
-
----
-
-## Game State
-
-Chess by Sparsh stores the current local game and user settings in the browser using `localStorage`.
-
-Saved data includes:
-
-- current FEN;
-- move history;
-- save timestamp;
-- user preferences (game mode, difficulty, board orientation).
-
-Clearing browser site data will remove saved state and settings.
-
----
-
-## Project Principles
-
-1. **Correctness before novelty** — rules and state handling matter more than feature volume.
-2. **Small surface area** — the app should remain easy to inspect, test, and maintain.
-3. **Local-first by default** — local play should not require a backend service.
-4. **Portable records** — FEN support should make game state easy to move and inspect.
-5. **Restrained claims** — this is a chess board, not a chess engine or rating system.
+No roadmap item should be treated as promised until it is implemented, tested, and released.
 
 ---
 
@@ -207,54 +242,21 @@ Clearing browser site data will remove saved state and settings.
 
 | Version | Direction |
 |---|---|
-| `v0.1.x` | Stabilize local play, tests, accessibility, and small UX refinements |
-| `v0.2.x` | PGN support, saved game list, board orientation controls |
-| `v0.3.x` | Optional clocks and timed local games |
-| `v0.4.x` | Optional engine-assisted analysis with clear labeling |
-| `v0.5.x` | Optional online play after design boundaries are documented |
+| `v0.1.x` | Local play foundation — board, rules, moves, FEN, persistence |
+| `v0.2.x` | Computer opponent, settings panel, game mode switching |
+| `v0.3.x` | PGN support, saved game list, board orientation controls |
+| `v0.4.x` | Optional clocks and timed local games |
+| `v0.5.x` | Optional engine-assisted analysis with clear labeling |
+| `v0.6.x` | Optional online play after design boundaries are documented |
 
-No roadmap item should be treated as promised until it is implemented, tested, and released.
-
----
-
-## Agent Notes
-
-Agents working on this repository should follow these rules:
-
-- Keep the visible product name as **Chess by Sparsh**.
-- Use `chess-by-sparsh` as the technical repository slug and package name.
-- Do not add online multiplayer, accounts, engine analysis, payments, or backend services without an explicit decision record.
-- Keep chess rules delegated to a mature rules library rather than reimplementing rules casually.
-- Preserve local-first behavior unless a future release deliberately changes scope.
-- Prefer small commits with clear tests.
-- Run `npm test`, `npm run build`, and `npm run lint` before merging functional changes.
-
----
-
-## Deployment
-
-The public demo is deployed on Vercel:
-
-https://chess-by-sparsh.vercel.app/
-
-For manual deployment through the Vercel CLI:
-
-```bash
-npm install -g vercel
-vercel login
-vercel --prod
-```
-
-The production build is generated by Vite.
+See [ROADMAP.md](ROADMAP.md) for the full versioned roadmap with principles and scope guidance.
 
 ---
 
 ## License
 
-MIT License. See `LICENSE`.
-
----
+MIT — see [LICENSE](LICENSE).
 
 ## Maintainer
 
-Created and maintained by [Sparsh Sam](https://github.com/sparshsam).
+Created by [Sparsh Sam](https://github.com/sparshsam).

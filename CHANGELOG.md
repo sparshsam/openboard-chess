@@ -6,6 +6,28 @@ This project follows practical versioned release notes rather than claiming stri
 
 ---
 
+## v0.2.1 — Presentation Polish
+
+**Status:** Released
+
+### Added
+
+- Centered hero README with application screenshot, badges, and navigation links.
+- `ARCHITECTURE.md` — full architecture documentation with component tree, data flow diagram, AI opponent design, and key design decisions.
+- `ROADMAP.md` — dedicated roadmap document separate from the README, with versioned progression and roadmap principles.
+- `.github/FUNDING.yml` — placeholder for future funding configuration.
+
+### Changed
+
+- Rewrote `README.md` with Elora Vault–inspired structure: what-it-IS/IS-NOT sections, centered hero with screenshot, technology badges, architecture overview, and streamlined navigation.
+- Polished `AGENTS.md` with product identity details, commit message conventions, settings persistence schema, and computer opponent testing notes.
+- Polished `CONTRIBUTING.md` with updated project structure, scope boundaries, and conventional commit guidance.
+- Polished `SECURITY.md` with clearer language on data boundaries and security claims.
+- Updated `CHANGELOG.md` with this version entry.
+- Updated package version to `0.2.1`.
+
+---
+
 ## v0.2.0 — Computer Opponent + Settings
 
 **Status:** Released
