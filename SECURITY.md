@@ -1,16 +1,16 @@
 # Security and Data Boundary
 
-Chess by Sparsh is a local-first chess board. The current release is a static client-side web app.
+Chess by Sparsh is a local-first chess board. The app is a static client-side web app that does not communicate with a server.
 
 ## Current Data Model
 
-The app stores local game state in the user's browser through `localStorage`.
+The app stores local game state and user settings in the user's browser through `localStorage`.
 
 Saved data may include:
 
-- current FEN;
-- move history;
-- timestamp of the saved state.
+- current FEN and move history;
+- timestamp of the saved state;
+- user preferences (game mode, difficulty, board orientation).
 
 The current app does not require:
 
