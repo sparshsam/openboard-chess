@@ -1,0 +1,364 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  text-align: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Board */
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  width: min(60vh, 60vw, 480px);
+  height: min(60vh, 60vw, 480px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.square:focus {
+  outline: none;
+}
+
+.square-light {
+  background-color: #e8e0d4;
+}
+
+.square-dark {
+  background-color: #6b8f71;
+}
+
+.square-selected {
+  background-color: #f6d55c;
+}
+
+.square-selected.square-dark {
+  background-color: #d4a843;
+}
+
+.label-rank,
+.label-file {
+  position: absolute;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.label-rank {
+  top: 2px;
+  left: 3px;
+}
+
+.label-file {
+  bottom: 2px;
+  right: 3px;
+}
+
+.square-dark .label-rank,
+.square-dark .label-file {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Pieces */
+.piece {
+  line-height: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.piece-white {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.piece-black {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* Legal move dots */
+.legal-move-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: rgba(0, 150, 0, 0.5);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Layout */
+.game-layout {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  max-width: 900px;
+  width: 100%;
+}
+
+.board-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar {
+  flex: 1;
+  min-width: 220px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Status bar */
+.status-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-alt);
+  border-radius: 6px;
+  width: 100%;
+  max-width: min(60vh, 60vw, 480px);
+}
+
+.status-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.status-fen {
+  font-size: 0.7rem;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Move history */
+.move-history {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.move-history-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.move-history-list {
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85rem;
+}
+
+.move-history-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: inherit;
+  margin: 0;
+}
+
+.move-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 2px 0;
+}
+
+.move-number {
+  color: var(--text-muted);
+  min-width: 2em;
+  text-align: right;
+}
+
+.move-white,
+.move-black {
+  min-width: 3.5em;
+}
+
+/* Game controls */
+.game-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.fen-import-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.fen-input {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.fen-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.fen-error {
+  margin: 0;
+  color: #c0392b;
+  font-size: 0.75rem;
+  width: 100%;
+}
+
+/* Promotion dialog */
+.promotion-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.promotion-dialog {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.promotion-title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.promotion-choices {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.promotion-btn {
+  width: 56px;
+  height: 56px;
+  font-size: 2rem;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-alt);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.promotion-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .game-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .sidebar {
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .board {
+    width: min(85vw, 85vw, 360px);
+    height: min(85vw, 85vw, 360px);
+  }
+
+  .square {
+    font-size: 1.6rem;
+  }
+
+  .status-bar {
+    max-width: 100%;
+  }
+}
