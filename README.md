@@ -1,236 +1,100 @@
 # Chess by Sparsh
 
-**Chess by Sparsh** is a local-first chess board for two-player play, accurate rule validation, move history, and portable game records.
+**Repository:** chess-by-sparsh
 
-[Live demo](https://openboard-chess.vercel.app/) · [Repository](https://github.com/sparshsam/openboard-chess)
+> Open-source chess board focused on clean local play, accurate rules, move history, and portable game records.
 
----
+## About
 
-## Status
+Chess by Sparsh is a lightweight, local-first chess application. It defaults to **User vs Computer** mode with rating-inspired difficulty levels, while **Local Two Player** is still available as an option. Full chess rules validation is handled by [chess.js](https://github.com/jhlywa/chess.js).
 
-| Field | Value |
-|---|---|
-| Version | `v0.1.0` |
-| Status | Live MVP |
-| Repository slug | `openboard-chess` |
-| Deployment | Vercel |
-| Runtime model | Client-side web app |
-| Primary mode | Local two-player chess |
-| Storage | Browser localStorage |
+### v0.2.0 — Computer Opponent
 
-This repository is intentionally focused. The first release prioritizes correctness, clarity, and a stable local play loop over platform-scale features.
+| Feature | Status |
+|---------|--------|
+| User vs Computer (default mode) | ✅ |
+| Local Two Player (optional mode) | ✅ |
+| Beginner (~800) difficulty | ✅ |
+| Casual (~1000) difficulty | ✅ |
+| Club (~1400) difficulty | ✅ |
+| 8×8 board with Unicode pieces | ✅ |
+| Click-to-select and legal move highlighting | ✅ |
+| Full chess rules (en passant, castling, promotion) | ✅ |
+| Move history in algebraic notation | ✅ |
+| FEN export/import | ✅ |
+| Pawn promotion dialog | ✅ |
+| localStorage persistence | ✅ |
+| Responsive layout | ✅ |
+| Computer "thinking" indicator | ✅ |
 
----
+> **Note:** Difficulty labels are **approximate skill bands**, not official Elo ratings. The computer opponent has not been benchmarked against any rating system — these labels are simply inspired by common chess rating tiers.
 
-## Purpose
+### Difficulty Levels
 
-Chess by Sparsh is a restrained, open-source chess board implementation. It is built to provide a readable and maintainable local chess experience with:
+- **Beginner (~800)** — PREFERS obvious captures and recaptures over random play. Avoids the most obvious one‑move blunders when simple to detect. Still plays with significant randomness and will miss tactics. Suited for new players still learning how pieces move.
 
-- accurate legal move handling;
-- a simple custom board interface;
-- portable game state through FEN;
-- durable browser-local persistence;
-- a clear foundation for future improvements.
+- **Casual (~1000)** — Stronger material awareness. Deliberately prefers captures and checks, develops knights and bishops toward the center, avoids obvious blunders more consistently, and handles simple threats better. Castles when practical. Suited for casual players who know basic strategy.
 
----
+- **Club (~1400)** — More disciplined heuristic play. Uses piece‑square tables for positional evaluation, MVV‑LVA capture scoring, check/checkmate detection with high confidence, king safety and castling awareness, open‑file preference for rooks, and central pawn control. Suited for club‑level players who want a competent practice partner.
 
-## v0.1.0 Features
+### What's intentionally deferred
 
-| Capability | Status |
-|---|---:|
-| Custom 8x8 chess board | Complete |
-| Unicode chess pieces | Complete |
-| Click-to-select movement | Complete |
-| Legal move highlighting | Complete |
-| Legal move validation through `chess.js` | Complete |
-| Castling, en passant, check, checkmate, stalemate, and draw handling | Complete |
-| Pawn promotion dialog | Complete |
-| Algebraic move history | Complete |
-| FEN export | Complete |
-| FEN import | Complete |
-| Browser-local game persistence | Complete |
-| Responsive layout | Complete |
-| Rule-focused test coverage | Complete |
+- ❌ No online multiplayer
+- ❌ No Stockfish or external engine integration
+- ❌ No user accounts or authentication
+- ❌ No telemetry, analytics, or tracking
+- ❌ No drag-and-drop piece movement (click-to-select only)
+- ❌ No PGN export/import
+- ❌ No takeback / undo move
+- ❌ No board flip / perspective toggle
+- ❌ No sound effects or animations
+- ❌ No clock / timed play
 
----
+## Tech Stack
 
-## Deliberately Out of Scope for v0.1.0
+- **Framework:** React 19 + TypeScript
+- **Build:** Vite 8
+- **Chess Engine:** chess.js 1.4
+- **Board UI:** Custom-rendered (no wrapper library)
+- **Testing:** Vitest + @testing-library/react
+- **Persistence:** localStorage
+- **CI:** GitHub Actions (test, build, lint)
+- **Deployment:** Vercel
 
-The following are intentionally deferred:
-
-- online multiplayer;
-- user accounts;
-- AI opponent or Stockfish integration;
-- engine analysis;
-- ratings, matchmaking, ladders, or tournaments;
-- server-side database storage;
-- drag-and-drop movement;
-- PGN import/export;
-- undo or takeback;
-- board flip;
-- clocks or timed play;
-- sound effects or animations.
-
-These are deferred to keep the MVP stable and understandable.
-
----
-
-## Technology
-
-| Layer | Choice |
-|---|---|
-| Frontend | React + TypeScript |
-| Build tool | Vite |
-| Chess rules | `chess.js` |
-| Board UI | Custom-rendered board |
-| Testing | Vitest + Testing Library |
-| Persistence | localStorage |
-| Deployment | Vercel |
-
----
-
-## Repository Structure
-
-```text
-.
-├── public/
-├── src/
-│   ├── components/
-│   ├── hooks/
-│   ├── test/
-│   ├── types/
-│   ├── utils/
-│   ├── App.tsx
-│   └── main.tsx
-├── index.html
-├── package.json
-├── tsconfig*.json
-└── vite.config.ts
-```
-
----
-
-## Local Development
-
-### Requirements
-
-- Node.js 20 or newer recommended
-- npm
-
-### Install
+## Development
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### Run locally
-
-```bash
+# Start dev server
 npm run dev
-```
 
-### Build
+# Run tests
+npm test
 
-```bash
+# Lint
+npm run lint
+
+# Build for production
 npm run build
 ```
 
-### Preview production build
+## Deployment (Vercel)
 
 ```bash
-npm run preview
-```
-
-### Test
-
-```bash
-npm test
-```
-
-### Lint
-
-```bash
-npm run lint
-```
-
----
-
-## Game State
-
-Chess by Sparsh stores the current local game in the browser using `localStorage`.
-
-The saved state includes:
-
-- current FEN;
-- move history;
-- save timestamp.
-
-Clearing browser site data will remove the saved game.
-
----
-
-## Project Principles
-
-1. **Correctness before novelty** — rules and state handling matter more than feature volume.
-2. **Small surface area** — the app should remain easy to inspect, test, and maintain.
-3. **Local-first by default** — local play should not require a backend service.
-4. **Portable records** — FEN support should make game state easy to move and inspect.
-5. **Restrained claims** — this is a chess board, not a chess engine or rating system.
-
----
-
-## Roadmap
-
-| Version | Direction |
-|---|---|
-| `v0.1.x` | Stabilize local play, tests, accessibility, and small UX refinements |
-| `v0.2.0` | PGN support, saved game list, board orientation controls |
-| `v0.3.0` | Optional clocks and timed local games |
-| `v0.4.0` | Optional engine-assisted analysis with clear labeling |
-| `v0.5.0` | Optional online play after design boundaries are documented |
-
-No roadmap item should be treated as promised until it is implemented, tested, and released.
-
----
-
-## Agent Notes
-
-Agents working on this repository should follow these rules:
-
-- Keep the visible product name as **Chess by Sparsh**.
-- Use `openboard-chess` only as the technical repository slug or internal key where necessary.
-- Do not add online multiplayer, accounts, engine analysis, payments, or backend services without an explicit decision record.
-- Keep chess rules delegated to a mature rules library rather than reimplementing rules casually.
-- Preserve local-first behavior unless a future release deliberately changes scope.
-- Prefer small commits with clear tests.
-- Run `npm test`, `npm run build`, and `npm run lint` before merging functional changes.
-
----
-
-## Deployment
-
-The public demo is deployed on Vercel:
-
-https://openboard-chess.vercel.app/
-
-For manual deployment through the Vercel CLI:
-
-```bash
+# Install Vercel CLI (if not already installed)
 npm install -g vercel
+
+# Login
 vercel login
+
+# Deploy
 vercel --prod
 ```
 
-The production build is generated by Vite.
-
----
+The Vite build output is automatically configured for Vercel — no additional configuration needed.
 
 ## License
 
-MIT License. See `LICENSE`.
-
----
-
-## Maintainer
-
-Created and maintained by [Sparsh Sam](https://github.com/sparshsam).
+MIT

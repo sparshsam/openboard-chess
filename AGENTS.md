@@ -5,11 +5,11 @@ This file gives AI coding agents a compact operating brief for Chess by Sparsh.
 ## Product Identity
 
 - Visible name: **Chess by Sparsh**
-- Repository slug: `openboard-chess`
+- Repository slug: `chess-by-sparsh`
 - Current release: `v0.1.0`
 - Product type: local-first chess board
 
-Use **Chess by Sparsh** in visible product copy. Use `openboard-chess` only when referring to the repository slug, package name, URLs, or internal storage keys.
+Use **Chess by Sparsh** in visible product copy. Use `chess-by-sparsh` only when referring to the repository slug, package name, URLs, or internal storage keys.
 
 ## Current Scope
 
