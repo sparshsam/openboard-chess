@@ -6,26 +6,37 @@
 
 ## About
 
-Chess by Sparsh is a lightweight, local-first chess application built for two human players on the same device. It provides a clean, distraction-free interface with full chess rules validation via [chess.js](https://github.com/jhlywa/chess.js).
+Chess by Sparsh is a lightweight, local-first chess application. It now defaults to **User vs Computer** mode, with **Local Two Player** still available as an option. Full chess rules validation is handled by [chess.js](https://github.com/jhlywa/chess.js).
 
-### v0.1.0 — Local-Only MVP
+### v0.2.0 — Computer Opponent
 
 | Feature | Status |
 |---------|--------|
+| User vs Computer (default mode) | ✅ |
+| Local Two Player (optional mode) | ✅ |
+| Easy difficulty (random legal moves) | ✅ |
+| Medium difficulty (material-aware) | ✅ |
+| Hard difficulty (strong heuristic) | ✅ |
 | 8×8 board with Unicode pieces | ✅ |
 | Click-to-select and legal move highlighting | ✅ |
 | Full chess rules (en passant, castling, promotion) | ✅ |
 | Move history in algebraic notation | ✅ |
 | FEN export/import | ✅ |
-| Game status (turn, check, checkmate, stalemate, draw) | ✅ |
 | Pawn promotion dialog | ✅ |
 | localStorage persistence | ✅ |
 | Responsive layout | ✅ |
+| Computer "thinking" indicator | ✅ |
 
-### What's intentionally deferred from v0.1.0
+### Difficulty Modes
+
+- **Easy** — Picks random legal moves. Good for absolute beginners.
+- **Medium** — Material-aware selection. Prefers captures, checks, and reasonable material gain. Adds a small random factor for variety.
+- **Hard** — Stronger heuristic with piece-square tables, MVV-LVA capture scoring, check/checkmate detection, promotion bonuses, and basic blunder avoidance. Picks the best move from top candidates with weighted randomness.
+
+### What's intentionally deferred
 
 - ❌ No online multiplayer
-- ❌ No AI engine / computer opponent
+- ❌ No AI engine / Stockfish integration
 - ❌ No user accounts or authentication
 - ❌ No telemetry, analytics, or tracking
 - ❌ No drag-and-drop piece movement (click-to-select only)

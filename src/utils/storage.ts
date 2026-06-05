@@ -1,4 +1,7 @@
+import type { Difficulty, GameMode } from '../computer/types';
+
 const STORAGE_KEY = 'openboard-chess-save';
+const SETTINGS_KEY = 'openboard-chess-settings';
 
 export function saveGame(fen: string, history: string[]): void {
   try {
@@ -28,5 +31,30 @@ export function clearGame(): void {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
     // ignore
+  }
+}
+
+export function saveSettings(gameMode: GameMode, difficulty: Difficulty): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ gameMode, difficulty }));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadSettings(): { gameMode: GameMode; difficulty: Difficulty } | null {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (
+      (data.gameMode === 'pvc' || data.gameMode === 'pvp') &&
+      (data.difficulty === 'easy' || data.difficulty === 'medium' || data.difficulty === 'hard')
+    ) {
+      return { gameMode: data.gameMode, difficulty: data.difficulty };
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
