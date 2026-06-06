@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   difficulty: 'casual',
   boardOrientation: 'white-bottom',
   boardTheme: 'classic',
-  pieceSet: 'unicode',
+  pieceSet: 'merida',
   soundEnabled: true,
 };
 

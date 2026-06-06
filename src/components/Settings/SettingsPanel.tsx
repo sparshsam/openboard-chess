@@ -12,6 +12,7 @@ const BOARD_THEME_OPTIONS: { value: BoardTheme; label: string }[] = [
 ];
 
 const PIECE_SET_OPTIONS: { value: PieceSet; label: string }[] = [
+  { value: 'merida', label: 'Merida' },
   { value: 'unicode', label: 'Unicode' },
   { value: 'symbols', label: 'Symbols' },
   { value: 'outlined', label: 'Outlined' },
