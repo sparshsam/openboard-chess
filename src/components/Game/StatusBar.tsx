@@ -39,21 +39,24 @@ export default function StatusBar({
     }
 
     if (isNightmare && stockfishStatus === 'ready') {
-      return ' (Nightmare thinking…)';
+      return ' (Nightmare thinking)';
     }
 
     if (stockfishStatus === 'error') {
       return ' (Stockfish unavailable)';
     }
 
-    return ' (thinking…)';
+    return '';
   };
+
+  const showThinkingDots = isComputerThinking && modeLabel !== 'Local 2P';
 
   return (
     <div className="status-bar">
       <span className="status-mode">
         {modeLabel}
         {getThinkingLabel()}
+        {showThinkingDots && <span className="thinking-dots" />}
       </span>
       <span className="status-text">{status}</span>
       {stockfishStatus === 'error' && stockfishError && (
