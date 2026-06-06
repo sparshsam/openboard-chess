@@ -1,6 +1,7 @@
 import type { Chess, Square as ChessSquare } from 'chess.js';
 import Square from './Square';
 import type { PieceInfo } from './Square';
+import type { BoardTheme, PieceSet } from '../../types';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'] as const;
@@ -10,9 +11,18 @@ interface BoardProps {
   selectedSquare: ChessSquare | null;
   legalMoves: ChessSquare[];
   onSquareClick: (square: ChessSquare) => void;
+  boardTheme?: BoardTheme;
+  pieceSet?: PieceSet;
 }
 
-export default function Board({ game, selectedSquare, legalMoves, onSquareClick }: BoardProps) {
+export default function Board({
+  game,
+  selectedSquare,
+  legalMoves,
+  onSquareClick,
+  boardTheme = 'classic',
+  pieceSet = 'unicode',
+}: BoardProps) {
   const squares: React.ReactNode[] = [];
 
   RANKS.forEach((rank, ri) => {
@@ -39,10 +49,11 @@ export default function Board({ game, selectedSquare, legalMoves, onSquareClick 
           rankLabel={rankLabel}
           fileLabel={fileLabel}
           onClick={() => onSquareClick(square)}
+          pieceSet={pieceSet}
         />
       );
     });
   });
 
-  return <div className="board">{squares}</div>;
+  return <div className={'board theme-' + boardTheme}>{squares}</div>;
 }
