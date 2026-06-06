@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Board from '../components/Board/Board';
 import MoveHistory from '../components/Game/MoveHistory';
 import StatusBar from '../components/Game/StatusBar';
@@ -8,6 +8,7 @@ import SettingsPanel from '../components/Settings/SettingsPanel';
 import CapturedPieces from '../components/CapturedPieces/CapturedPieces';
 import { useChessGame } from '../hooks/useChessGame';
 import { useSettings } from '../hooks/useSettings';
+import { isDebugEnabled, getDebugInfo, type EngineDebugInfo } from '../chess/engineDebug';
 import './App.css';
 import '../components/Settings/SettingsPanel.css';
 
@@ -53,6 +54,17 @@ export default function App() {
     exitReviewMode,
     goToMove,
   } = useChessGame({ settings });
+
+  const [engineDebug, setEngineDebug] = useState<Partial<EngineDebugInfo> | null>(null);
+
+  useEffect(() => {
+    if (!isDebugEnabled()) return;
+    const interval = setInterval(() => {
+      const info = getDebugInfo();
+      if (info) setEngineDebug(info);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isComputerThinking, history]);
 
   const captured = useMemo(() => capturedPieces(), [capturedPieces]);
 
@@ -147,6 +159,20 @@ export default function App() {
         onPieceSetChange={setPieceSet}
         onSoundEnabledChange={setSoundEnabled}
       />
+      {engineDebug && (
+        <div style={{
+          position: 'fixed', bottom: 8, left: 8,
+          fontSize: '11px', fontFamily: 'monospace',
+          background: 'rgba(0,0,0,0.75)', color: '#0f0',
+          padding: '6px 10px', borderRadius: 4, zIndex: 999,
+          maxWidth: 300, lineHeight: 1.4
+        } as React.CSSProperties}>
+          {engineDebug.difficulty} | depth {engineDebug.depthReached}/{engineDebug.maxDepth} |
+          {' '}{engineDebug.nodesSearched} nodes | score {engineDebug.bestScore}cp |
+          {' '}{engineDebug.openingBookHit ? '📖' : ''} {engineDebug.quiescenceUsed ? '🔍' : ''} {engineDebug.transpositionTableUsed ? '🗄️' : ''}
+        </div>
+      )}
     </div>
   );
 }
+

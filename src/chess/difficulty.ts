@@ -50,7 +50,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     quiescence: false,
     useTranspositionTable: false,
     iterativeDeepening: false,
-    description: '1-ply search with piece-square evaluation. Captures hanging pieces.',
+    description: '1-ply search with piece-square evaluation, king safety, mobility, and opening book guidance.',
   },
   club: {
     label: 'Club',
@@ -60,7 +60,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     quiescence: true,
     useTranspositionTable: false,
     iterativeDeepening: false,
-    description: '3-ply alpha-beta search with quiescence. MVV-LVA move ordering. Full evaluation with mobility and pawn structure.',
+    description: '3-ply alpha-beta with quiescence, MVV-LVA ordering. Full positional evaluation with mobility, pawn structure, king safety. Opening book.',
   },
   expert: {
     label: 'Expert',
@@ -110,7 +110,7 @@ export type EvalFeatures = {
 /** Which evaluation features to use per difficulty */
 export const EVAL_FEATURES: Record<Difficulty, EvalFeatures> = {
   beginner: { mobility: false, pawnStructure: false, development: false, space: false, kingSafety: false },
-  casual: { mobility: false, pawnStructure: false, development: false, space: false, kingSafety: false },
+  casual: { mobility: true, pawnStructure: false, development: true, space: false, kingSafety: true },
   club: { mobility: true, pawnStructure: true, development: true, space: true, kingSafety: true },
   expert: { mobility: true, pawnStructure: true, development: true, space: true, kingSafety: true },
   nightmare: { mobility: false, pawnStructure: false, development: false, space: false, kingSafety: false },
