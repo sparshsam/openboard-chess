@@ -84,6 +84,9 @@ export default function App() {
 
       <header className="app-header">
         <h1>Chess by Sparsh</h1>
+        <span className="piece-set-badge" title="Active piece set">
+          {settings.pieceSet}
+        </span>
         <button className="settings-toggle-btn" onClick={toggleSettings} aria-label="Open settings">
           &#9881; Settings
         </button>

@@ -51,6 +51,21 @@
   border-color: var(--accent-light);
 }
 
+/* Piece set debug badge */
+.piece-set-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  position: absolute;
+  left: 1rem;
+  line-height: 1.6;
+}
+
 .app-main {
   flex: 1;
   padding: 1.5rem 1rem;
