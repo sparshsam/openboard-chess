@@ -1,14 +1,16 @@
 /**
- * Simple fixed-size transposition table.
- * Uses a basic hash (FEN-based) since we don't have Zobrist in this codebase.
- * Size: ~64KB with default settings (1M entries × ~64 bytes each ≈ 64MB is too large;
- * we use a smaller table: 262144 entries (~2MB) which is reasonable for browser use).
- * Production chess engines use Zobrist hashing, but this gives us the main benefit:
- * avoiding re-searching the same position at similar depths.
+ * Transposition table for the chess engine.
+ *
+ * Uses FNV-1a hashing on the relevant FEN part (position + castling + en passant)
+ * for fast key generation. Collision verification is done by storing the full
+ * FEN string alongside the key.
+ *
+ * Size: 524288 entries (~4-8MB depending on slot overhead), which is reasonable
+ * for browser use and gives good cache hit rates at Expert depth 5.
  */
 
-// Use a prime-ish size for good distribution
-const TT_SIZE = 1 << 18; // 262144 entries
+/** Table size: 2^19 = 524288 entries (2x previous size) */
+const TT_SIZE = 1 << 19;
 
 /** Node type for TT entry */
 export const NodeType = {
@@ -23,8 +25,10 @@ export const NodeType = {
 export type NodeType = (typeof NodeType)[keyof typeof NodeType];
 
 export interface TTEntry {
-  /** Zobrist-like hash from FEN (simple hash) */
+  /** FNV-1a hash of the relevant FEN part */
   key: number;
+  /** Full FEN (relevant part) for collision verification */
+  fen: string;
   /** Depth searched */
   depth: number;
   /** Score from search (from perspective of the position's player) */
@@ -48,20 +52,27 @@ export class TranspositionTable {
   }
 
   /**
-   * Simple hash from FEN string — fast and good enough for our purposes.
-   * We ignore the move counters (last two fields) so positions are matched
-   * regardless of 50-move rule / fullmove number.
+   * FNV-1a hash of the relevant FEN portion.
+   * We hash the piece placement + active color + castling + en passant
+   * (4 fields), ignoring move counters for position matching.
+   *
+   * FNV-1a provides much better distribution than djb2, reducing collision
+   * rate significantly.
    */
   hashFen(fen: string): number {
-    // Strip move counters: only hash the position + castling + en passant
-    const parts = fen.split(' ');
-    const relevant = parts.slice(0, 4).join(' ');
-
-    let hash = 5381;
+    const relevant = this.getRelevantPart(fen);
+    let hash = 2166136261 >>> 0; // FNV offset basis
     for (let i = 0; i < relevant.length; i++) {
-      hash = ((hash << 5) + hash) ^ relevant.charCodeAt(i);
+      hash ^= relevant.charCodeAt(i);
+      hash = Math.imul(hash, 16777619); // FNV prime
     }
-    return hash;
+    return hash >>> 0; // ensure unsigned 32-bit
+  }
+
+  /** Extract the position-significant part of a FEN (first 4 fields) */
+  getRelevantPart(fen: string): string {
+    const parts = fen.split(' ');
+    return parts.slice(0, 4).join(' ');
   }
 
   /** Get the index for a given hash */
@@ -79,16 +90,23 @@ export class TranspositionTable {
   ): void {
     const key = this.hashFen(fen);
     const idx = this.index(key);
+    const relevantFen = this.getRelevantPart(fen);
 
-    // Replacement strategy: always replace if depth >= existing, or if older
+    // Replacement strategy: replace if depth >= existing, or if older
     const existing = this.entries[idx];
-    if (existing && existing.depth > depth && existing.age >= this.age - 1) {
-      // Keep the deeper entry if it's recent enough
-      return;
+    if (existing) {
+      // Collision check: if same key but different FEN, always replace
+      if (existing.fen !== relevantFen) {
+        // Hash collision — replace regardless
+      } else if (existing.depth > depth && existing.age >= this.age - 1) {
+        // Keep the deeper entry if it's recent enough
+        return;
+      }
     }
 
     this.entries[idx] = {
       key,
+      fen: relevantFen,
       depth,
       score,
       nodeType,
@@ -105,7 +123,11 @@ export class TranspositionTable {
     const idx = this.index(key);
     const entry = this.entries[idx];
 
-    if (!entry || entry.key !== key) return null;
+    if (!entry) return null;
+
+    // Verify: check key and FEN match
+    if (entry.key !== key) return null;
+    if (entry.fen !== this.getRelevantPart(fen)) return null;
     if (entry.depth < requiredDepth) return null;
 
     return entry;
@@ -118,6 +140,7 @@ export class TranspositionTable {
     const entry = this.entries[idx];
 
     if (!entry || entry.key !== key) return null;
+    if (entry.fen !== this.getRelevantPart(fen)) return null;
     if (!entry.bestFrom || !entry.bestTo) return null;
 
     return {
