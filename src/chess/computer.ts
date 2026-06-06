@@ -12,6 +12,7 @@ import { getTable, mirrorRows } from './pieceSquareTables';
 import { quiescenceSearch } from './quiescence';
 import { getOrderedMoves } from './moveOrdering';
 import { TranspositionTable, NodeType } from './transpositionTable';
+import { openingBook } from './openingBook';
 
 /** A move result with source and destination squares */
 export interface SquareMove {
@@ -22,6 +23,66 @@ export interface SquareMove {
 
 /** Delay before computer moves (in ms) — gives natural feel */
 export const COMPUTER_DELAY_MS = 500;
+
+/** Node budget for Club difficulty (prevents infinite/long searches) */
+const CLUB_MAX_NODES = 30000;
+
+/** Node budget for Expert difficulty per depth iteration */
+const EXPERT_NODES_PER_ITERATION = 80000;
+
+/** Yield interval: every N nodes, yield to the event loop */
+const YIELD_INTERVAL = 500;
+
+// ── Node counter (shared across search) ─────────────────────────
+
+let nodeCount = 0;
+let yieldCounter = 0;
+
+function resetNodeCount(): void {
+  nodeCount = 0;
+  yieldCounter = 0;
+}
+
+/**
+ * Increment node counter and optionally yield to the browser event loop.
+ * Returns false if the search should stop (exceeded node budget).
+ */
+async function incrementNode(maxNodes: number): Promise<boolean> {
+  nodeCount++;
+  yieldCounter++;
+  if (nodeCount > maxNodes) return false;
+  // Yield periodically to keep the browser responsive
+  if (yieldCounter >= YIELD_INTERVAL) {
+    yieldCounter = 0;
+    await new Promise<void>(r => setTimeout(r, 0));
+  }
+  return true;
+}
+
+// ── Opening Book Integration ────────────────────────────────────
+
+/**
+ * Check if we can play an opening book move.
+ * Returns the book move as a SquareMove, or null if out of book.
+ */
+function getBookMove(game: Chess, difficulty: Difficulty): SquareMove | null {
+  const history = game.history({ verbose: true });
+  const uciHistory = history.map(m => m.from + m.to);
+
+  const bookPlyLimit = difficulty === 'expert' ? 10 : 6; // Plies of book usage
+
+  if (uciHistory.length >= bookPlyLimit) return null;
+
+  const move = openingBook.getBookMove(uciHistory);
+  if (!move) return null;
+
+  // Parse UCI move
+  const from = move.slice(0, 2) as ChessSquare;
+  const to = move.slice(2, 4) as ChessSquare;
+  const promotion = move.length === 5 ? move[4] as 'q' | 'r' | 'b' | 'n' : undefined;
+
+  return { from, to, promotion };
+}
 
 /**
  * Get a computer move for the given difficulty.
@@ -39,6 +100,12 @@ export async function getComputerMove(
     throw new Error('No legal moves available');
   }
 
+  // Check opening book for Club+ difficulties
+  if (difficulty === 'club' || difficulty === 'expert') {
+    const bookMove = getBookMove(game, difficulty);
+    if (bookMove) return bookMove;
+  }
+
   let selected: SquareMove;
 
   switch (difficulty) {
@@ -49,14 +116,11 @@ export async function getComputerMove(
       selected = casualMove(game, moves);
       break;
     case 'club':
-      selected = clubMove(game);
+      selected = await clubMove(game);
       break;
     case 'expert':
-      selected = expertMove(game);
+      selected = await expertMove(game);
       break;
-    /* Nightmare difficulty is documented in difficulty.ts but excluded from the
-     * Difficulty type union. It requires Stockfish WASM integration and will be
-     * added when the engine is properly bundled. */
     default:
       selected = beginnerMove(game, moves);
   }
@@ -139,31 +203,36 @@ function casualMove(game: Chess, moves: ChessMove[]): SquareMove {
   return moveToSquareMove(bestMove);
 }
 
-// ── Club: 3-ply + quiescence with alpha-beta ───────────────────────
+// ── Club: 3-ply + quiescence with alpha-beta, node budget, yielding ─────
 
-function clubMove(game: Chess): SquareMove {
+async function clubMove(game: Chess): Promise<SquareMove> {
   const config = DIFFICULTIES.club;
   const depth = config.depth;
   const maximizingColor = game.turn() as 'w' | 'b';
 
-  // Use MVV-LVA ordering for Club
+  resetNodeCount();
+
+  // Use orderMoves for ordering
   const orderedMoves = getOrderedMoves(game);
 
   let bestMove: { from: string; to: string; promotion?: string } | null = null;
   let bestScore = -Infinity;
 
   for (const move of orderedMoves) {
-    const g = new Chess(game.fen());
-    g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+    // Use move+undo pattern for efficiency
+    game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-    const score = minimaxWithQs(
-      g,
+    const score = await minimaxWithQs(
+      game,
       depth - 1,
       -Infinity,
       Infinity,
       maximizingColor,
-      depth - 1
+      depth - 1,
+      CLUB_MAX_NODES
     );
+
+    game.undo();
 
     if (score > bestScore) {
       bestScore = score;
@@ -183,15 +252,16 @@ function clubMove(game: Chess): SquareMove {
   };
 }
 
-// ── Expert: iterative deepening + TT ───────────────────────────────
+// ── Expert: iterative deepening + TT, node budget, yielding ─────────
 
 const expertTT = new TranspositionTable();
 
-function expertMove(game: Chess): SquareMove {
+async function expertMove(game: Chess): Promise<SquareMove> {
   const maximizingColor = game.turn() as 'w' | 'b';
 
   // Clear TT on each new root search
   expertTT.clear();
+  resetNodeCount();
 
   const startTime = Date.now();
   const maxTime = EXPERT_THINK_TIME_MS;
@@ -202,17 +272,18 @@ function expertMove(game: Chess): SquareMove {
   // Iterative deepening: search depth 1, 2, 3, ... up to maxDepth or time
   for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
     expertTT.newIteration();
+    resetNodeCount();
 
-    const result = searchRoot(
+    const result = await searchRoot(
       game,
       currentDepth,
       maximizingColor,
       startTime,
-      maxTime
+      maxTime,
+      EXPERT_NODES_PER_ITERATION
     );
 
-    if (result.timedOut) {
-      // Use the best move from previous completed depth
+    if (result.timedOut || result.nodeBudgetExceeded) {
       break;
     }
 
@@ -239,15 +310,17 @@ function expertMove(game: Chess): SquareMove {
 interface RootSearchResult {
   bestMove: { from: string; to: string; promotion?: string } | null;
   timedOut: boolean;
+  nodeBudgetExceeded: boolean;
 }
 
-function searchRoot(
+async function searchRoot(
   game: Chess,
   depth: number,
   maximizingColor: 'w' | 'b',
   startTime: number,
-  maxTime: number
-): RootSearchResult {
+  maxTime: number,
+  maxNodes: number
+): Promise<RootSearchResult> {
   const ttBest = expertTT.getBestMove(game.fen());
   const orderedMoves = getOrderedMoves(game, ttBest);
 
@@ -258,14 +331,14 @@ function searchRoot(
 
   for (const move of orderedMoves) {
     if (Date.now() - startTime > maxTime) {
-      return { bestMove, timedOut: true };
+      return { bestMove, timedOut: true, nodeBudgetExceeded: false };
     }
 
-    const g = new Chess(game.fen());
-    g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+    // Use move+undo pattern
+    game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-    const score = alphaBetaWithTT(
-      g,
+    const score = await alphaBetaWithTT(
+      game,
       depth - 1,
       alpha,
       beta,
@@ -273,8 +346,11 @@ function searchRoot(
       depth - 1,
       expertTT,
       startTime,
-      maxTime
+      maxTime,
+      maxNodes
     );
+
+    game.undo();
 
     if (score > bestScore) {
       bestScore = score;
@@ -295,23 +371,30 @@ function searchRoot(
     );
   }
 
-  return { bestMove, timedOut: false };
+  return { bestMove, timedOut: false, nodeBudgetExceeded: false };
 }
 
 // ── Core Search Functions ──────────────────────────────────────────
 
 /**
  * Minimax with alpha-beta and quiescence search at leaf nodes.
- * Used by Club difficulty.
+ * Used by Club difficulty. Supports node budget and yielding.
  */
-function minimaxWithQs(
+async function minimaxWithQs(
   game: Chess,
   depth: number,
   alpha: number,
   beta: number,
   maximizingColor: 'w' | 'b',
-  qsDepth: number
-): number {
+  qsDepth: number,
+  maxNodes: number
+): Promise<number> {
+  // Node budget check
+  if (!await incrementNode(maxNodes)) {
+    // Budget exceeded — return static evaluation
+    return evaluateForTurn(game, maximizingColor);
+  }
+
   const isMaximizing = game.turn() === maximizingColor;
 
   // Terminal check
@@ -330,24 +413,29 @@ function minimaxWithQs(
   if (isMaximizing) {
     let maxEval = -Infinity;
     for (const move of moves) {
-      const g = new Chess(game.fen());
-      g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+      // Use move+undo pattern
+      game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = minimaxWithQs(g, depth - 1, alpha, beta, maximizingColor, qsDepth);
+      const score = await minimaxWithQs(game, depth - 1, alpha, beta, maximizingColor, qsDepth, maxNodes);
       maxEval = Math.max(maxEval, score);
       alpha = Math.max(alpha, score);
+
+      game.undo();
+
       if (beta <= alpha) break;
     }
     return maxEval === -Infinity ? quiescenceSearch(game, alpha, beta, maximizingColor) : maxEval;
   } else {
     let minEval = Infinity;
     for (const move of moves) {
-      const g = new Chess(game.fen());
-      g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+      game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = minimaxWithQs(g, depth - 1, alpha, beta, maximizingColor, qsDepth);
+      const score = await minimaxWithQs(game, depth - 1, alpha, beta, maximizingColor, qsDepth, maxNodes);
       minEval = Math.min(minEval, score);
       beta = Math.min(beta, score);
+
+      game.undo();
+
       if (beta <= alpha) break;
     }
     return minEval === Infinity ? quiescenceSearch(game, alpha, beta, maximizingColor) : minEval;
@@ -356,9 +444,9 @@ function minimaxWithQs(
 
 /**
  * Alpha-beta search with transposition table support.
- * Used by Expert difficulty.
+ * Used by Expert difficulty. Supports node budget, yielding, and move+undo.
  */
-function alphaBetaWithTT(
+async function alphaBetaWithTT(
   game: Chess,
   depth: number,
   alpha: number,
@@ -367,22 +455,26 @@ function alphaBetaWithTT(
   maxDepth: number,
   tt: TranspositionTable,
   startTime: number,
-  maxTime: number
-): number {
-  const isMaximizing = game.turn() === maximizingColor;
-
-  // Time check (every 1024 nodes approximated through depth check)
-  // We check at the top of each call to avoid deep timeouts mid-search
-  if (depth <= 0) {
-    // Quiescence at leaf
-    return quiescenceSearch(game, alpha, beta, maximizingColor);
+  maxTime: number,
+  maxNodes: number
+): Promise<number> {
+  // Node budget check
+  if (!await incrementNode(maxNodes)) {
+    return evaluateForTurn(game, maximizingColor);
   }
+
+  const isMaximizing = game.turn() === maximizingColor;
 
   // Check terminal
   if (game.isCheckmate()) {
     return isMaximizing ? -99999 + (10 - maxDepth + depth) * 100 : 99999 - (10 - maxDepth + depth) * 100;
   }
   if (game.isDraw()) return 0;
+
+  // Quiescence at leaf
+  if (depth <= 0) {
+    return quiescenceSearch(game, alpha, beta, maximizingColor);
+  }
 
   // Transposition table probe
   const ttEntry = tt.probe(game.fen(), depth);
@@ -401,10 +493,6 @@ function alphaBetaWithTT(
     if (alpha >= beta) return ttScore;
   }
 
-  // Null move pruning is intentionally omitted.
-  // chess.js doesn't support null moves (passing the turn), which would be required
-  // for proper null move pruning. This optimization can be added later if needed.
-
   // Get moves with TT best move for ordering
   const ttBest = tt.getBestMove(game.fen());
   const moves = getOrderedMoves(game, ttBest);
@@ -415,10 +503,12 @@ function alphaBetaWithTT(
 
   if (isMaximizing) {
     for (const move of moves) {
-      const g = new Chess(game.fen());
-      g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+      game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = alphaBetaWithTT(g, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime);
+      const score = await alphaBetaWithTT(game, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime, maxNodes);
+
+      game.undo();
+
       if (score > bestScore) {
         bestScore = score;
         bestMove = { from: move.from, to: move.to, promotion: move.promotion };
@@ -431,10 +521,12 @@ function alphaBetaWithTT(
     }
   } else {
     for (const move of moves) {
-      const g = new Chess(game.fen());
-      g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+      game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = alphaBetaWithTT(g, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime);
+      const score = await alphaBetaWithTT(game, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime, maxNodes);
+
+      game.undo();
+
       if (score < bestScore) {
         bestScore = score;
         bestMove = { from: move.from, to: move.to, promotion: move.promotion };
@@ -453,7 +545,9 @@ function alphaBetaWithTT(
   }
 
   // Store in TT
-  tt.store(game.fen(), depth, bestScore, nodeType, bestMove ?? undefined);
+  if (bestScore !== (isMaximizing ? -Infinity : Infinity)) {
+    tt.store(game.fen(), depth, bestScore, nodeType, bestMove ?? undefined);
+  }
 
   return bestScore;
 }
