@@ -13,6 +13,11 @@ import { quiescenceSearch } from './quiescence';
 import { getOrderedMoves } from './moveOrdering';
 import { TranspositionTable, NodeType } from './transpositionTable';
 import { openingBook } from './openingBook';
+import {
+  recordDebug,
+  clearDebug,
+  isDebugEnabled,
+} from './engineDebug';
 
 /** A move result with source and destination squares */
 export interface SquareMove {
@@ -25,38 +30,27 @@ export interface SquareMove {
 export const COMPUTER_DELAY_MS = 500;
 
 /** Node budget for Club difficulty (prevents infinite/long searches) */
-const CLUB_MAX_NODES = 30000;
+const CLUB_MAX_NODES = 150000;
 
 /** Node budget for Expert difficulty per depth iteration */
-const EXPERT_NODES_PER_ITERATION = 80000;
-
-/** Yield interval: every N nodes, yield to the event loop */
-const YIELD_INTERVAL = 500;
+const EXPERT_NODES_PER_ITERATION = 200000;
 
 // ── Node counter (shared across search) ─────────────────────────
 
 let nodeCount = 0;
-let yieldCounter = 0;
 
 function resetNodeCount(): void {
   nodeCount = 0;
-  yieldCounter = 0;
 }
 
 /**
- * Increment node counter and optionally yield to the browser event loop.
+ * Increment node counter and check budget.
  * Returns false if the search should stop (exceeded node budget).
+ * No async yielding — search runs inside setTimeout so browser stays responsive.
  */
-async function incrementNode(maxNodes: number): Promise<boolean> {
+function checkNodeBudget(maxNodes: number): boolean {
   nodeCount++;
-  yieldCounter++;
-  if (nodeCount > maxNodes) return false;
-  // Yield periodically to keep the browser responsive
-  if (yieldCounter >= YIELD_INTERVAL) {
-    yieldCounter = 0;
-    await new Promise<void>(r => setTimeout(r, 0));
-  }
-  return true;
+  return nodeCount <= maxNodes;
 }
 
 // ── Opening Book Integration ────────────────────────────────────
@@ -69,7 +63,13 @@ function getBookMove(game: Chess, difficulty: Difficulty): SquareMove | null {
   const history = game.history({ verbose: true });
   const uciHistory = history.map(m => m.from + m.to);
 
-  const bookPlyLimit = difficulty === 'expert' ? 10 : 6; // Plies of book usage
+  let bookPlyLimit: number;
+  switch (difficulty) {
+    case 'casual': bookPlyLimit = 4; break;  // First 2 moves
+    case 'club': bookPlyLimit = 6; break;     // First 3 moves
+    case 'expert': bookPlyLimit = 10; break;  // First 5 moves
+    default: return null;
+  }
 
   if (uciHistory.length >= bookPlyLimit) return null;
 
@@ -100,10 +100,24 @@ export async function getComputerMove(
     throw new Error('No legal moves available');
   }
 
-  // Check opening book for Club+ difficulties
-  if (difficulty === 'club' || difficulty === 'expert') {
+  // Reset debug info for this move
+  if (isDebugEnabled()) {
+    clearDebug();
+  }
+
+  // Opening book for all difficulties except Beginner and Nightmare
+  if (difficulty === 'casual' || difficulty === 'club' || difficulty === 'expert') {
     const bookMove = getBookMove(game, difficulty);
-    if (bookMove) return bookMove;
+    if (bookMove) {
+      if (isDebugEnabled()) {
+        recordDebug({
+          difficulty,
+          fen: game.fen(),
+          openingBookHit: true,
+        });
+      }
+      return bookMove;
+    }
   }
 
   let selected: SquareMove;
@@ -116,10 +130,10 @@ export async function getComputerMove(
       selected = casualMove(game, moves);
       break;
     case 'club':
-      selected = await clubMove(game);
+      selected = clubMove(game);
       break;
     case 'expert':
-      selected = await expertMove(game);
+      selected = expertMove(game);
       break;
     default:
       selected = beginnerMove(game, moves);
@@ -181,7 +195,7 @@ function beginnerMove(game: Chess, moves: ChessMove[]): SquareMove {
   return weightedRandom(scored);
 }
 
-// ── Casual: 1-ply minimax with material + PST ──────────────────────
+// ── Casual: 1-ply minimax with material + PST + positional features ──
 
 function casualMove(game: Chess, moves: ChessMove[]): SquareMove {
   const ef = EVAL_FEATURES.casual;
@@ -203,12 +217,13 @@ function casualMove(game: Chess, moves: ChessMove[]): SquareMove {
   return moveToSquareMove(bestMove);
 }
 
-// ── Club: 3-ply + quiescence with alpha-beta, node budget, yielding ─────
+// ── Club: 3-ply + quiescence with alpha-beta, node budget ─────────
 
-async function clubMove(game: Chess): Promise<SquareMove> {
+function clubMove(game: Chess): SquareMove {
   const config = DIFFICULTIES.club;
   const depth = config.depth;
   const maximizingColor = game.turn() as 'w' | 'b';
+  const startTime = Date.now();
 
   resetNodeCount();
 
@@ -222,7 +237,7 @@ async function clubMove(game: Chess): Promise<SquareMove> {
     // Use move+undo pattern for efficiency
     game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-    const score = await minimaxWithQs(
+    const score = minimaxWithQs(
       game,
       depth - 1,
       -Infinity,
@@ -245,6 +260,25 @@ async function clubMove(game: Chess): Promise<SquareMove> {
     return pickRandom(fallback);
   }
 
+  // Record debug info
+  if (isDebugEnabled()) {
+    recordDebug({
+      difficulty: 'club',
+      fen: game.fen(),
+      depthReached: depth,
+      maxDepth: depth,
+      nodesSearched: nodeCount,
+      nodeBudget: CLUB_MAX_NODES,
+      bestScore,
+      bestMove: bestMove.from + bestMove.to,
+      searchTimeMs: Date.now() - startTime,
+      openingBookHit: false,
+      quiescenceUsed: true,
+      transpositionTableUsed: false,
+      evaluationFeatures: ['mobility', 'pawnStructure', 'development', 'space', 'kingSafety'],
+    });
+  }
+
   return {
     from: bestMove.from as ChessSquare,
     to: bestMove.to as ChessSquare,
@@ -252,11 +286,11 @@ async function clubMove(game: Chess): Promise<SquareMove> {
   };
 }
 
-// ── Expert: iterative deepening + TT, node budget, yielding ─────────
+// ── Expert: iterative deepening + TT, node budget ─────────────────
 
 const expertTT = new TranspositionTable();
 
-async function expertMove(game: Chess): Promise<SquareMove> {
+function expertMove(game: Chess): SquareMove {
   const maximizingColor = game.turn() as 'w' | 'b';
 
   // Clear TT on each new root search
@@ -268,13 +302,15 @@ async function expertMove(game: Chess): Promise<SquareMove> {
   const maxDepth = EXPERT_DEPTH;
 
   let bestMove: { from: string; to: string; promotion?: string } | null = null;
+  let finalScore = -Infinity;
+  let reachedDepth = 0;
 
   // Iterative deepening: search depth 1, 2, 3, ... up to maxDepth or time
   for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
     expertTT.newIteration();
     resetNodeCount();
 
-    const result = await searchRoot(
+    const result = searchRoot(
       game,
       currentDepth,
       maximizingColor,
@@ -288,6 +324,8 @@ async function expertMove(game: Chess): Promise<SquareMove> {
     }
 
     bestMove = result.bestMove;
+    finalScore = result.score;
+    reachedDepth = currentDepth;
 
     // Check time after each depth
     if (Date.now() - startTime > maxTime * 0.8) {
@@ -300,6 +338,25 @@ async function expertMove(game: Chess): Promise<SquareMove> {
     return pickRandom(fallback);
   }
 
+  // Record debug info
+  if (isDebugEnabled()) {
+    recordDebug({
+      difficulty: 'expert',
+      fen: game.fen(),
+      depthReached: reachedDepth,
+      maxDepth,
+      nodesSearched: nodeCount,
+      nodeBudget: EXPERT_NODES_PER_ITERATION,
+      bestScore: finalScore,
+      bestMove: bestMove.from + bestMove.to,
+      searchTimeMs: Date.now() - startTime,
+      openingBookHit: false,
+      quiescenceUsed: true,
+      transpositionTableUsed: true,
+      evaluationFeatures: ['mobility', 'pawnStructure', 'development', 'space', 'kingSafety'],
+    });
+  }
+
   return {
     from: bestMove.from as ChessSquare,
     to: bestMove.to as ChessSquare,
@@ -309,18 +366,19 @@ async function expertMove(game: Chess): Promise<SquareMove> {
 
 interface RootSearchResult {
   bestMove: { from: string; to: string; promotion?: string } | null;
+  score: number;
   timedOut: boolean;
   nodeBudgetExceeded: boolean;
 }
 
-async function searchRoot(
+function searchRoot(
   game: Chess,
   depth: number,
   maximizingColor: 'w' | 'b',
   startTime: number,
   maxTime: number,
   maxNodes: number
-): Promise<RootSearchResult> {
+): RootSearchResult {
   const ttBest = expertTT.getBestMove(game.fen());
   const orderedMoves = getOrderedMoves(game, ttBest);
 
@@ -331,13 +389,13 @@ async function searchRoot(
 
   for (const move of orderedMoves) {
     if (Date.now() - startTime > maxTime) {
-      return { bestMove, timedOut: true, nodeBudgetExceeded: false };
+      return { bestMove, score: bestScore, timedOut: true, nodeBudgetExceeded: false };
     }
 
     // Use move+undo pattern
     game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-    const score = await alphaBetaWithTT(
+    const score = alphaBetaWithTT(
       game,
       depth - 1,
       alpha,
@@ -371,16 +429,16 @@ async function searchRoot(
     );
   }
 
-  return { bestMove, timedOut: false, nodeBudgetExceeded: false };
+  return { bestMove, score: bestScore, timedOut: false, nodeBudgetExceeded: false };
 }
 
 // ── Core Search Functions ──────────────────────────────────────────
 
 /**
  * Minimax with alpha-beta and quiescence search at leaf nodes.
- * Used by Club difficulty. Supports node budget and yielding.
+ * Used by Club difficulty. Supports node budget.
  */
-async function minimaxWithQs(
+function minimaxWithQs(
   game: Chess,
   depth: number,
   alpha: number,
@@ -388,9 +446,9 @@ async function minimaxWithQs(
   maximizingColor: 'w' | 'b',
   qsDepth: number,
   maxNodes: number
-): Promise<number> {
+): number {
   // Node budget check
-  if (!await incrementNode(maxNodes)) {
+  if (!checkNodeBudget(maxNodes)) {
     // Budget exceeded — return static evaluation
     return evaluateForTurn(game, maximizingColor);
   }
@@ -416,7 +474,7 @@ async function minimaxWithQs(
       // Use move+undo pattern
       game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = await minimaxWithQs(game, depth - 1, alpha, beta, maximizingColor, qsDepth, maxNodes);
+      const score = minimaxWithQs(game, depth - 1, alpha, beta, maximizingColor, qsDepth, maxNodes);
       maxEval = Math.max(maxEval, score);
       alpha = Math.max(alpha, score);
 
@@ -430,7 +488,7 @@ async function minimaxWithQs(
     for (const move of moves) {
       game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = await minimaxWithQs(game, depth - 1, alpha, beta, maximizingColor, qsDepth, maxNodes);
+      const score = minimaxWithQs(game, depth - 1, alpha, beta, maximizingColor, qsDepth, maxNodes);
       minEval = Math.min(minEval, score);
       beta = Math.min(beta, score);
 
@@ -444,9 +502,9 @@ async function minimaxWithQs(
 
 /**
  * Alpha-beta search with transposition table support.
- * Used by Expert difficulty. Supports node budget, yielding, and move+undo.
+ * Used by Expert difficulty. Supports node budget and move+undo.
  */
-async function alphaBetaWithTT(
+function alphaBetaWithTT(
   game: Chess,
   depth: number,
   alpha: number,
@@ -457,9 +515,9 @@ async function alphaBetaWithTT(
   startTime: number,
   maxTime: number,
   maxNodes: number
-): Promise<number> {
+): number {
   // Node budget check
-  if (!await incrementNode(maxNodes)) {
+  if (!checkNodeBudget(maxNodes)) {
     return evaluateForTurn(game, maximizingColor);
   }
 
@@ -505,7 +563,7 @@ async function alphaBetaWithTT(
     for (const move of moves) {
       game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = await alphaBetaWithTT(game, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime, maxNodes);
+      const score = alphaBetaWithTT(game, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime, maxNodes);
 
       game.undo();
 
@@ -523,7 +581,7 @@ async function alphaBetaWithTT(
     for (const move of moves) {
       game.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-      const score = await alphaBetaWithTT(game, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime, maxNodes);
+      const score = alphaBetaWithTT(game, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime, maxNodes);
 
       game.undo();
 
