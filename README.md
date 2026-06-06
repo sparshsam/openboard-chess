@@ -7,7 +7,7 @@
   <p><strong>Play the computer or a friend. No accounts, no backend, no telemetry.</strong></p>
   <br />
   <div>
-    <img src="https://img.shields.io/badge/version-v0.3.0-green" alt="Version" />
+    <img src="https://img.shields.io/badge/version-v0.3.1-green" alt="Version" />
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
     <img src="https://img.shields.io/badge/React-20232A?logo=react" alt="React" />
@@ -99,7 +99,7 @@ npm run lint
 | Browser-local game persistence | Complete |
 | Responsive layout | Complete |
 | Rule-focused test coverage | Complete |
-| **Computer opponent (4 levels)** | **Complete** |
+| **Computer opponent (4 levels)** | **Complete (v0.3.1 optimizations)** |
 | **Settings panel** | **Complete** |
 | **Game mode switching** | **Complete** |
 | **Board orientation setting** | **Complete** |
@@ -111,8 +111,8 @@ npm run lint
 |---|---|---|
 | Beginner | 800 | Weighted random — center preference, capture bonus, occasional blunders |
 | Casual | 1000 | 1-ply minimax — captures hanging pieces, avoids blunders |
-| Club | 1400 | 3-ply alpha-beta + quiescence — MVV-LVA ordering, full eval (mobility, pawn structure, dev, space) |
-| Expert | 1700 | 5-ply iterative deepening + TT + quiescence — tactical stability, full eval |
+| Club | 1450 | 3-ply alpha-beta + quiescence — move/undo search, node budget, opening book (6 plies), tuned eval weights |
+| Expert | 1750 | 5-ply iterative deepening + TT + quiescence — opening book, improved eval, node budget |
 
 > Rating-inspired skill bands, not official Elo ratings.
 

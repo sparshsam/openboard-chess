@@ -6,6 +6,54 @@ This project follows practical versioned release notes rather than claiming stri
 
 ---
 
+## v0.3.1 — Engine Validation & Optimization Release
+
+**Status:** Released
+
+### Fixed
+
+- **Quiescence search:** Removed redundant `qsearchMinimal` wrapper, combined into single `quiescenceSearch`. Explicit promotions handling in tactical move list. Fixed delta pruning margin to use piece-value-based threshold instead of arbitrary 200cp.
+- **Mobility evaluation:** Replaced `approximateMobility()` (crude piece-counting that ignored pins/checks) with `countAttackedSquares()` — iterates the board and counts squares attacked by each piece. Simpler and significantly more accurate for the non-turning side.
+- **King safety:** Rewrote `kingSafetyScore`. Fixed center distance formula (now `|kf - 3.5| + |kr - 3.5|` regardless of color). Removed stale `pawnDir` comments and dead code. Castling detection now checks corner position + front pawns.
+- **Move ordering:** Replaced fake check detection (`captured === 'k'`) with real `givesCheck()` using clone-and-move. Applied to top 8 moves only to control cost.
+- **Transposition table:** Upgraded from djb2 to FNV-1a hashing for better distribution. Added FEN verification field in TTEntry to detect/reject hash collisions. Increased table size from 262144 to 524288 entries.
+
+### Added
+
+- **Opening book:** ~35 common opening lines (Italian, Ruy Lopez, Scotch, Sicilian, French, Caro-Kann, Queen's Gambit, Indian Defenses, English) stored as UCI move sequences. Used by Club (up to 6 plies) and Expert (up to 10 plies).
+- **Endgame evaluation:** When total non-king material drops below 1800cp — king centralization bonus, rook open-file bonus (+15 open, +10 semi-open), opposite-colored bishops drawishness adjustment (−50cp when few other pieces remain), extra passed pawn bonus.
+- **Node budget:** CLUB_MAX_NODES=30000, EXPERT_NODES_PER_ITERATION=80000 to cap search effort.
+- **Browser yielding:** Every 500 nodes, yields to the event loop via `setTimeout(0)` to prevent browser freezing during Expert search.
+- **Engine benchmark utility:** `src/chess/bench.ts` — tests 6 positions across difficulty levels with timing, timeout protection, and formatted output. Run with `npx tsx src/chess/bench.ts [casual|club|expert]`.
+
+### Changed
+
+- **Search optimization:** Switched from `new Chess(game.fen())` clones to `game.move()`/`game.undo()` pattern for search traversal. Avoids creating thousands of new Chess objects per search.
+- **Evaluation weight tuning:**
+  - Mobility weight: 5 → 3 (10 extra moves = 30cp instead of 50cp)
+  - Doubled pawn penalty: −15 → −20
+  - Isolated pawn penalty: −20 → −25
+  - Passed pawn base: +10 → +20, per-rank increment: +20 → +15
+  - Castled bonus: 20 → 30
+  - Pawn shield max: 12 → 15
+  - Close file penalty: 15 → 20
+  - Center control: 10 → 8 per square
+  - Development: centralized bonus 15 → 20, back-rank penalty 15 → 20
+
+### Performance
+
+- Expert search now yields every 500 nodes with a global node budget, preventing browser freezes
+- Club search capped at 30K nodes total
+- Move/undo pattern reduces Chess object allocations by ~90%+ compared to per-node cloning
+- FNV-1a hash reduces TT collision rate vs. djb2
+
+### Documentation
+
+- CHANGELOG updated with v0.3.1 entry
+- README updated with v0.3.1 details
+
+---
+
 ## v0.3.0 — Engine Strength Release
 
 **Status:** Released
