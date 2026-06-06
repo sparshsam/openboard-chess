@@ -7,7 +7,7 @@
   <p><strong>Play the computer or a friend. No accounts, no backend, no telemetry.</strong></p>
   <br />
   <div>
-    <img src="https://img.shields.io/badge/version-v0.4.0-green" alt="Version" />
+    <img src="https://img.shields.io/badge/version-v0.5.0-green" alt="Version" />
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
     <img src="https://img.shields.io/badge/React-20232A?logo=react" alt="React" />
@@ -107,7 +107,7 @@ npm run lint
 | Browser-local game persistence | Complete |
 | Responsive layout | Complete |
 | Rule-focused test coverage | Complete |
-| **Computer opponent (4 levels)** | **Complete (v0.3.1 optimizations)** |
+| **Computer opponent (5 levels, incl. Stockfish Nightmare)** | **Complete (v0.5.0)** |
 | **Settings panel** | **Complete** |
 | **Game mode switching** | **Complete** |
 | **Board orientation setting** | **Complete** |
@@ -132,8 +132,11 @@ npm run lint
 | Casual | 1000 | 1-ply minimax — captures hanging pieces, avoids blunders |
 | Club | 1450 | 3-ply alpha-beta + quiescence — move/undo search, node budget, opening book (6 plies), tuned eval weights |
 | Expert | 1750 | 5-ply iterative deepening + TT + quiescence — opening book, improved eval, node budget |
+| Nightmare | 2000+ | **Stockfish WASM** — real chess engine in the browser. ~2.5s think time. Loaded on demand. |
 
 > Rating-inspired skill bands, not official Elo ratings.
+
+> ⚠ **Nightmare difficulty** requires a modern browser with SharedArrayBuffer support. See [Browser Requirements](#browser-requirements) below.
 
 ---
 
@@ -143,35 +146,62 @@ Chess by Sparsh is a single-page React application with no backend dependencies.
 
 **Data flow:** User interaction → React event handler → chess.js rule validation → state update via hooks → React re-render → board display.
 
-**AI pipeline:** Game state → difficulty adapter → evaluation function → minimax search (alpha-beta at Club level) → move selection → promise-based async delay → board update.
+**AI pipeline (Beginner–Expert):** Game state → difficulty adapter → evaluation function → minimax search (alpha-beta at Club level) → move selection → promise-based async delay → board update.
+
+**AI pipeline (Nightmare):** Game state → UCI protocol → Stockfish WASM engine → `bestmove` callback → board update.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    React App                         │
-│                                                      │
-│  ┌──────────┐   ┌──────────────┐   ┌─────────────┐  │
-│  │  Board    │   │  GameControls │   │  StatusBar   │  │
-│  │ + Square  │   │  MoveHistory │   │              │  │
-│  └─────┬────┘   └──────┬───────┘   └──────┬──────┘  │
-│        │              │                   │           │
-│  ┌─────┴──────────────┴───────────────────┴──────┐   │
-│  │             useChessGame hook                  │   │
-│  │  (state + computer scheduling + persistence)    │   │
-│  └─────┬─────────────────────────────────────────┘   │
-│        │                                              │
-│  ┌─────┴─────────────────────────────────────────┐   │
-│  │             chess.js rules library             │   │
-│  │   (moves, validation, game-over detection)     │   │
-│  └───────────────────────────────────────────────┘   │
-│                                                      │
-│  ┌──────────────┐   ┌──────────────┐                │
-│  │  AI Engine   │   │  localStorage │                │
-│  │  minimax     │   │  (save/load)  │                │
-│  │  evaluate    │   └──────────────┘                │
-│  │  PST         │                                   │
-│  └──────────────┘                                   │
-└─────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                       React App                            │
+│                                                            │
+│  ┌──────────┐   ┌──────────────┐   ┌──────────────────┐   │
+│  │  Board    │   │  GameControls │   │   StatusBar      │   │
+│  │ + Square  │   │  MoveHistory │   │  (+ Stockfish    │   │
+│  └─────┬────┘   └──────┬───────┘   │   progress)       │   │
+│        │              │            └────────┬─────────┘   │
+│  ┌─────┴──────────────┴─────────────────────┴─────────┐   │
+│  │              useChessGame hook                       │   │
+│  │   (state + computer scheduling + persistence         │   │
+│  │    + Stockfish lifecycle)                            │   │
+│  └─────┬───────────────────────────────────────────────┘   │
+│        │                                                    │
+│  ┌─────┴───────────────────────┐   ┌─────────────────────┐  │
+│  │    chess.js rules library   │   │  StockfishEngine     │  │
+│  │ (moves, validation, game   │   │  (UCI wrapper)       │  │
+│  │  over detection)            │   │  ─── dynamically     │  │
+│  └─────────────────────────────┘   │  imported            │  │
+│                                    └─────────┬───────────┘  │
+│  ┌──────────────┐   ┌──────────────┐         │              │
+│  │  AI Engine   │   │  localStorage │         │              │
+│  │  minimax     │   │ (save/load)  │         ▼              │
+│  │  evaluate    │   └──────────────┘   stockfish.wasm      │
+│  │  PST         │                       (WASM + worker)     │
+│  └──────────────┘                                         │
+└────────────────────────────────────────────────────────────┘
 ```
+
+### Stockfish Integration
+
+Nightmare difficulty uses [`stockfish.wasm@0.10.0`](https://github.com/niklasf/stockfish.wasm) — the same WebAssembly port that powers Lichess analysis. Key details:
+
+- **Lazy loading:** The engine is dynamically imported only when Nightmare is selected. It is NOT loaded on app startup.
+- **UCI protocol:** Communication via the Universal Chess Interface protocol.
+- **Web Workers:** Uses SharedArrayBuffer + Web Workers for threading.
+- **Cleanup:** The engine is terminated when switching away from Nightmare or unmounting the app.
+- **Progress:** Real-time depth and evaluation scores are shown in the status bar while the engine thinks.
+
+```
+view/hook ──> StockfishEngine.init() ──> dynamic import('stockfish.wasm')
+                │
+                ├──> Stockfish() ──> Emscripten WASM loader ──> stockfish.worker.js
+                │
+                ├──> waitForMessage('uciok') + 'readyok'
+                │
+                └──> engine.search(fen, thinkTimeMs)
+                        │
+                        ├──> 'info depth X score cp YYY' (real-time progress)
+                        │
+                        └──> 'bestmove e2e4' (final move callback)
 
 ---
 
@@ -291,14 +321,42 @@ The app is fully responsive and works on mobile devices:
 
 ---
 
+## Browser Requirements
+
+While the core app works in any modern browser, **Nightmare difficulty** requires:
+
+- **WebAssembly threading support** (enabled by default in modern browsers)
+- **`SharedArrayBuffer`** API
+- **`Atomics`** API
+- **Proper HTTP headers:** `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Opener-Policy: same-origin`
+
+**Supported:** Chrome 79+, Edge 79+, Firefox 79+ (desktop only)
+**Not supported:** Safari, mobile browsers, older browsers
+
+### Self-hosting
+
+If you deploy this app on your own server, ensure the following headers are set on the top-level response:
+
+```
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Opener-Policy: same-origin
+```
+
+For Vercel deployments, `vercel.json` handles this automatically. For local development, Vite's dev server is configured with these headers.
+
+### Feature Detection
+
+The app includes `isWasmThreadsSupported()` to check at runtime whether the browser supports Stockfish. If unsupported, a clear error message is shown in the UI.
+
+---
+
 ## Deliberately Out of Scope
 
 The following are intentionally deferred:
 
 - Online multiplayer
 - User accounts
-- Stockfish or other external engine integration
-- Engine analysis
+- Engine analysis (beyond playing against Stockfish)
 - Ratings, matchmaking, ladders, or tournaments
 - Server-side database storage
 - PGN import
@@ -317,8 +375,9 @@ No roadmap item should be treated as promised until it is implemented, tested, a
 | `v0.2.x` | Computer opponent, settings panel, game mode switching |
 | `v0.3.x` | Engine Strength Release: Club/Expert engine upgrade, quiescence, TT, MVV-LVA, improved eval |
 | `v0.4.x` | **Gameplay Product Polish: Undo, resign, PGN, themes, piece sets, sound, mobile** |
-| `v0.5.x` | Optional engine-assisted analysis with clear labeling |
-| `v0.6.x` | Optional online play after design boundaries are documented |
+| `v0.5.x` | **Stockfish Nightmare Release: Real chess engine integration via WASM** |
+| `v0.6.x` | Optional engine-assisted analysis with clear labeling |
+| `v0.7.x` | Optional online play after design boundaries are documented |
 
 See [ROADMAP.md](ROADMAP.md) for the full versioned roadmap with principles and scope guidance.
 

@@ -36,6 +36,12 @@ The app stores local game state and user settings in the user's browser through 
 
 The app contains no external network requests beyond the initial page load from Vercel's static hosting.
 
+**Note:** The v0.5.0 Stockfish Nightmare integration loads the Stockfish WASM engine from the application's own bundled assets. The engine is fetched from the same origin and runs entirely locally in the browser — it makes no network calls.
+
+### SharedArrayBuffer Headers
+
+Stockfish WASM requires `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Opener-Policy: same-origin` HTTP headers. These are configured for both the Vite dev server (`vite.config.ts`) and Vercel deployments (`vercel.json`). The headers do not affect data privacy — they are a browser security mechanism for shared memory.
+
 ---
 
 ## Reporting Issues

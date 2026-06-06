@@ -36,6 +36,9 @@ export default function App() {
     gameResult,
     reviewMode,
     reviewIndex,
+    stockfishStatus,
+    stockfishError,
+    stockfishProgress,
     selectSquare,
     promote,
     cancelPromotion,
@@ -55,6 +58,8 @@ export default function App() {
 
   const canUndo = history.length > 0;
   const canResign = !gameResult && !game.isGameOver() && history.length > 0;
+  const isNightmare =
+    settings.gameMode === 'computer' && settings.difficulty === 'nightmare';
 
   return (
     <div className={'app piece-set-active-' + settings.pieceSet}>
@@ -85,6 +90,10 @@ export default function App() {
               fen={fen}
               gameMode={settings.gameMode}
               isComputerThinking={isComputerThinking}
+              stockfishStatus={stockfishStatus}
+              stockfishError={stockfishError}
+              stockfishProgress={stockfishProgress}
+              isNightmare={isNightmare}
             />
           </div>
 

@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
 import type { Square } from 'chess.js';
-import type { PromotionChoice, AppSettings, GameMode } from '../types';
+import type { PromotionChoice, AppSettings, GameMode, StockfishStatus } from '../types';
 import type { Difficulty } from '../chess/difficulty';
 import { getComputerMove, COMPUTER_DELAY_MS } from '../chess/computer';
+import { StockfishEngine } from '../chess/stockfish';
+import type { StockfishMove, StockfishEngineState } from '../chess/stockfish';
 import { saveGame, loadGame, clearGame } from '../lib/storage';
 import {
   playMoveSound,
@@ -27,6 +29,9 @@ const PIECE_VALUE: Record<string, number> = {
   p: 1,
   k: 0,
 };
+
+/** How long Stockfish should think per move (ms) */
+const STOCKFISH_THINK_TIME_MS = 2500;
 
 function rebuildMoveFens(history: string[]): string[] {
   const fens: string[] = [new Chess().fen()];
@@ -55,6 +60,14 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const [isComputerThinking, setIsComputerThinking] = useState(false);
   const [gameResult, setGameResult] = useState<GameResult>(null);
 
+  // Stockfish state
+  const [stockfishStatus, setStockfishStatus] = useState<StockfishStatus>('unloaded');
+  const [stockfishError, setStockfishError] = useState<string | null>(null);
+  const [stockfishProgress, setStockfishProgress] = useState<{
+    depth: number;
+    score: number;
+  } | null>(null);
+
   // Move review state
   const [moveFens, setMoveFens] = useState<string[]>([game.fen()]);
   const [reviewMode, setReviewMode] = useState(false);
@@ -65,6 +78,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const settingsRef = useRef(settings);
   const gameRef = useRef(game);
   const computerMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stockfishEngineRef = useRef<StockfishEngine | null>(null);
+  const stockfishStateRef = useRef<StockfishEngineState>('idle');
 
   // Keep refs in sync via effect (not during render)
   useEffect(() => {
@@ -105,6 +120,32 @@ export function useChessGame({ settings }: UseChessGameOptions) {
 
     setStatus(msg);
   }, [game]);
+
+  // ── Stockfish integration ─────────────────────────────────────
+
+
+
+  // Stockfish computer move
+  const scheduleStockfishMove = useCallback(() => {
+    setIsComputerThinking(true);
+
+    // Short delay for natural feel
+    setTimeout(() => {
+      const engine = stockfishEngineRef.current;
+      const g = gameRef.current;
+      if (
+        !engine ||
+        engine.currentState !== 'ready' ||
+        g.turn() !== 'b' ||
+        g.isGameOver()
+      ) {
+        setIsComputerThinking(false);
+        return;
+      }
+
+      engine.search(g.fen(), STOCKFISH_THINK_TIME_MS);
+    }, 300 + Math.random() * 400);
+  }, []);
 
   // ── Schedule computer move (called after user plays) ───────────
   const scheduleComputerMove = useCallback(() => {
@@ -164,6 +205,11 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       computerMoveTimeoutRef.current = null;
     }
 
+    // Stop Stockfish if it's searching
+    if (stockfishEngineRef.current) {
+      stockfishEngineRef.current.stop();
+    }
+
     game.reset();
     setSelectedSquare(null);
     setLegalMoves([]);
@@ -172,6 +218,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     setGameResult(null);
     setReviewMode(false);
     setReviewIndex(-1);
+    setStockfishProgress(null);
     clearGame();
     updateState();
   }, [game, updateState]);
@@ -205,10 +252,14 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       const isComputerTurn =
         settingsRef.current.gameMode === 'computer' && game.turn() === 'b' && !game.isGameOver();
       if (isComputerTurn) {
-        scheduleComputerMove();
+        if (settingsRef.current.difficulty === 'nightmare') {
+          scheduleStockfishMove();
+        } else {
+          scheduleComputerMove();
+        }
       }
     },
-    [game, scheduleComputerMove]
+    [game, scheduleComputerMove, scheduleStockfishMove]
   );
 
   // ── Move Review ─────────────────────────────────────────────
@@ -421,6 +472,94 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Initialize or terminate Stockfish when difficulty changes
+  useEffect(() => {
+    const isNightmare =
+      settings.gameMode === 'computer' && settings.difficulty === 'nightmare';
+
+    if (isNightmare && stockfishStatus === 'unloaded') {
+      // Start loading Stockfish — set state directly outside async init
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setStockfishStatus('loading');
+      setStockfishError(null);
+      setStockfishProgress(null);
+
+      const engine = new StockfishEngine();
+      stockfishEngineRef.current = engine;
+
+      engine.init({
+        onStateChange: (state: StockfishEngineState) => {
+          stockfishStateRef.current = state;
+          if (state === 'ready') {
+            setStockfishStatus('ready');
+          } else if (state === 'error') {
+            setStockfishStatus('error');
+          }
+        },
+        onBestMove: (move: StockfishMove) => {
+          const g = gameRef.current;
+          if (g.turn() !== 'b' || g.isGameOver()) {
+            setStockfishProgress(null);
+            return;
+          }
+
+          try {
+            g.move({
+              from: move.from as Square,
+              to: move.to as Square,
+              promotion: move.promotion as 'q' | 'r' | 'b' | 'n' | undefined,
+            });
+            setSelectedSquare(null);
+            setLegalMoves([]);
+            setStockfishProgress(null);
+            updateState();
+
+            const s = settingsRef.current;
+            if (s.soundEnabled) {
+              const hist = g.history({ verbose: true });
+              if (hist.length > 0) {
+                const last = hist[hist.length - 1];
+                if (last.captured) playCaptureSound();
+                else playMoveSound();
+              }
+            }
+          } catch (err) {
+            console.error('Failed to apply Stockfish move:', err);
+          } finally {
+            setIsComputerThinking(false);
+          }
+        },
+        onError: (error: string) => {
+          setStockfishError(error);
+          setStockfishStatus('error');
+          setIsComputerThinking(false);
+        },
+        onProgress: (info: { depth: number; score: number }) => {
+          setStockfishProgress({ depth: info.depth, score: info.score });
+        },
+      }).catch((err: unknown) => {
+        setStockfishStatus('error');
+        setStockfishError(
+          `Failed to initialize Stockfish: ${err instanceof Error ? err.message : String(err)}`
+        );
+        setIsComputerThinking(false);
+      });
+      /* eslint-enable react-hooks/set-state-in-effect */
+    }
+
+    if (!isNightmare && stockfishStatus !== 'unloaded') {
+      if (stockfishEngineRef.current) {
+        stockfishEngineRef.current.terminate();
+        stockfishEngineRef.current = null;
+      }
+      stockfishStateRef.current = 'idle';
+      setStockfishStatus('unloaded');
+      setStockfishError(null);
+      setStockfishProgress(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.gameMode, settings.difficulty, stockfishStatus]);
+
   // Reset board when game mode or difficulty changes
   useEffect(() => {
     if (
@@ -433,11 +572,15 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     }
   }, [settings.gameMode, settings.difficulty, handleNewGame]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts and Stockfish on unmount
   useEffect(() => {
     return () => {
       if (computerMoveTimeoutRef.current) {
         clearTimeout(computerMoveTimeoutRef.current);
+      }
+      if (stockfishEngineRef.current) {
+        stockfishEngineRef.current.terminate();
+        stockfishEngineRef.current = null;
       }
     };
   }, []);
@@ -455,6 +598,9 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     reviewMode,
     reviewIndex,
     moveFens,
+    stockfishStatus,
+    stockfishError,
+    stockfishProgress,
     selectSquare,
     promote,
     cancelPromotion,

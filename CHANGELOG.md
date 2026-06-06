@@ -6,6 +6,55 @@ This project follows practical versioned release notes rather than claiming stri
 
 ---
 
+## v0.5.0 — Stockfish Nightmare Release
+
+**Status:** Released
+
+### Added
+
+- **Nightmare difficulty (~2000):** Powered by Stockfish WASM — a real chess engine running in your browser via WebAssembly. Uses the `stockfish.wasm@0.10.0` package (the same one Lichess uses).
+- **Lazy loading:** Stockfish WASM (~150KB gzipped, ~400KB total with worker) is dynamically imported *only* when the user selects Nightmare difficulty. Not loaded on app startup.
+- **StockfishEngine wrapper** (`src/chess/stockfish.ts`): UCI protocol integration with state management, progress reporting (depth/score), error handling, and proper resource cleanup.
+- **Progress display:** Status bar shows "Nightmare dX | ±Y.ZZ" while Stockfish is thinking, with real-time depth and evaluation updates.
+- **Loading states:** UI shows "Loading Stockfish engine…" while the WASM binary is downloading and initializing.
+- **Error handling:** If Stockfish fails to load (e.g., missing SharedArrayBuffer support), the error is displayed in the UI.
+- **Browser compatibility check:** `isWasmThreadsSupported()` utility function in the Stockfish wrapper.
+- **Vercel deployment headers:** `vercel.json` with `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Opener-Policy: same-origin` required for SharedArrayBuffer.
+- **Dev server headers:** Vite config configured with COOP/COEP headers for local development.
+- **Nightmare warning in UI:** Difficulty selector shows a warning note about SharedArrayBuffer requirements when Nightmare is selected.
+
+### Changed
+
+- **Difficulty type** — `'nightmare'` added to the `Difficulty` union type.
+- **DIFFICULTIES config** — Nightmare entry now active with `usesStockfish: true` and a descriptive description.
+- **DIFFICULTY_OPTIONS** — Nightmare added to the selector dropdown.
+- **useChessGame hook** — Supports Stockfish lifecycle (init/terminate/search), Stockfish move integration, and progress tracking.
+- **StatusBar component** — New props for Stockfish status, error, progress, and Nightmare indicator.
+- **App component** — Passes Stockfish state through to StatusBar.
+- **DifficultySelector** — Shows SharedArrayBuffer warning when Nightmare is selected.
+- **package.json** — Version bumped to 0.5.0.
+- **vite.config.ts** — Added COOP/COEP headers and excluded `stockfish.wasm` from optimizeDeps.
+- **SECURITY.md** — Updated to note Stockfish is a local engine with no network calls.
+
+### Integration Details
+
+- Stockfish WASM uses SharedArrayBuffer + Web Workers for threading (single thread configured for compatibility).
+- Engine configured with 16MB hash and 1 thread.
+- ~2.5 seconds think time per move for Nightmare difficulty.
+- Engine is terminated when switching away from Nightmare or unmounting the app.
+
+### Browser Compatibility
+
+Nightmare difficulty requires a modern browser with:
+- WebAssembly threading support
+- `SharedArrayBuffer`
+- `Atomics` API
+- Proper COOP/COEP HTTP headers
+
+Supported browsers: Chrome 79+, Edge 79+, Firefox 79+. Not supported on Safari or mobile browsers.
+
+---
+
 ## v0.4.0 — Gameplay Product Polish Release
 
 **Status:** Released

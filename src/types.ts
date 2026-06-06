@@ -31,6 +31,9 @@ export type BoardTheme = 'classic' | 'marine' | 'ember' | 'forest' | 'midnight';
 /** Piece set */
 export type PieceSet = 'unicode' | 'symbols' | 'outlined';
 
+/** Stockfish WASM loading state */
+export type StockfishStatus = 'unloaded' | 'loading' | 'ready' | 'error';
+
 /** All user preferences */
 export interface AppSettings {
   gameMode: GameMode;

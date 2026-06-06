@@ -1,12 +1,12 @@
 /** Difficulty levels for the computer opponent */
-export type Difficulty = 'beginner' | 'casual' | 'club' | 'expert';
+export type Difficulty = 'beginner' | 'casual' | 'club' | 'expert' | 'nightmare';
 
 export interface DifficultyConfig {
   /** Human-readable label */
   label: string;
   /** Approximate rating */
   rating: number;
-  /** Search depth in half-moves (plies) */
+  /** Search depth in half-moves (plies) — 0 means depth is not applicable (uses external engine) */
   depth: number;
   /** Whether random blunders occur */
   randomBlunders: boolean;
@@ -16,6 +16,8 @@ export interface DifficultyConfig {
   useTranspositionTable: boolean;
   /** Whether to use iterative deepening with time management */
   iterativeDeepening: boolean;
+  /** Whether this difficulty uses external engine integration (e.g. Stockfish WASM) */
+  usesStockfish?: boolean;
   /** Description for the UI */
   description: string;
   /** Whether this difficulty is hidden from the UI */
@@ -70,26 +72,26 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     iterativeDeepening: true,
     description: '5-ply iterative deepening with transposition cache and quiescence. Full evaluation. Tactical stability.',
   },
+  nightmare: {
+    label: 'Nightmare',
+    rating: 2000,
+    depth: 0,
+    randomBlunders: false,
+    quiescence: false,
+    useTranspositionTable: false,
+    iterativeDeepening: false,
+    usesStockfish: true,
+    description:
+      'Powered by Stockfish WASM (introduced in v0.5.0). Extremely strong. Requires SharedArrayBuffer support in your browser. ~150KB gzipped, loaded on-demand when this difficulty is selected.',
+  },
 };
-
-/**
- * Nightmare placeholder — requires Stockfish WASM integration.
- * Disabled and hidden from the UI until bundled properly.
- */
-export const NIGHTMARE_CONFIG = {
-  label: 'Nightmare',
-  rating: 2000,
-  depth: 0, // N/A — Stockfish handles this
-  disabled: true,
-  description: 'Requires Stockfish WASM integration. Hidden until engine is properly bundled.',
-  hidden: true,
-} as const;
 
 export const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
   { value: 'beginner', label: 'Beginner (~800)' },
   { value: 'casual', label: 'Casual (~1000)' },
   { value: 'club', label: 'Club (~1400)' },
   { value: 'expert', label: 'Expert (~1700)' },
+  { value: 'nightmare', label: 'Nightmare (~2000)' },
 ];
 
 /** Disclaimer text shown near difficulty selector */
@@ -111,4 +113,5 @@ export const EVAL_FEATURES: Record<Difficulty, EvalFeatures> = {
   casual: { mobility: false, pawnStructure: false, development: false, space: false, kingSafety: false },
   club: { mobility: true, pawnStructure: true, development: true, space: true, kingSafety: true },
   expert: { mobility: true, pawnStructure: true, development: true, space: true, kingSafety: true },
+  nightmare: { mobility: false, pawnStructure: false, development: false, space: false, kingSafety: false },
 };

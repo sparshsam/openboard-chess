@@ -1,7 +1,7 @@
 {
   "name": "chess-by-sparsh",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
   "dependencies": {
     "chess.js": "^1.4.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "stockfish.wasm": "^0.10.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
