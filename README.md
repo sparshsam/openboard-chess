@@ -52,9 +52,13 @@ The product is designed around one idea: chess should be easy to start, locally 
 - Move review / step-through mode
 - Captured pieces display
 - Board color themes (Classic, Marine, Ember, Forest, Midnight)
-- Multiple piece rendering sets (Unicode, Symbols, Outlined)
+- Multiple piece rendering sets (Merida, Unicode, Symbols, Outlined)
 - Web Audio API sound effects (moves, captures, checks, checkmate)
 - Warm, cozy UI with a carpet texture background
+- Animated piece movements and board interaction feedback
+- PWA support (installable app, offline caching)
+- Keyboard navigation and accessibility features
+- Glass-morphism card/panel effects
 
 ### What it IS NOT:
 - Not an online multiplayer platform
@@ -178,7 +182,13 @@ On WSL2 with Windows, make sure:
 | **Captured pieces display** | **Complete (v0.4.0)** |
 | **Move review / step-through mode** | **Complete (v0.4.0)** |
 | **Board color themes (5 themes)** | **Complete (v0.4.0)** |
-| **Piece rendering sets (3 styles)** | **Complete (v0.4.0)** |
+| **Piece rendering sets (4 styles)** | **Complete (v0.6.0)** |
+| **Piece move animations** | **Complete (v0.6.0)** |
+| **Board interaction feedback** | **Complete (v0.6.0)** |
+| **PWA support (manifest, service worker)** | **Complete (v0.6.0)** |
+| **Keyboard navigation & accessibility** | **Complete (v0.6.0)** |
+| **Glass-morphism cards & shadows** | **Complete (v0.6.0)** |
+| **Tablet responsive breakpoint** | **Complete (v0.6.0)** |
 | **Sound effects (Web Audio API)** | **Complete (v0.4.0)** |
 | **Mobile layout improvements** | **Complete (v0.4.0)** |
 
@@ -335,19 +345,20 @@ view/hook ──> StockfishEngine.init() ──> dynamic import('stockfish.wasm'
 
 Choose from five board color themes in the Settings panel:
 
-- **Classic** — Light #e8e0d4, Dark #6b8f71 (default)
-- **Marine** — Light #dee4ea, Dark #5a7d9a
-- **Ember** — Light #f5e0c3, Dark #b8623a
-- **Forest** — Light #d4d9a8, Dark #4a6b3a
-- **Midnight** — Light #c8ccd0, Dark #3d4a5c
+- **Classic** — Light #f0d9b5, Dark #b58863 (default, warmer wood tones)
+- **Marine** — Light #e8edf3, Dark #4a7a9c (cool blues)
+- **Ember** — Light #f7e4c4, Dark #b85a30 (warm fire tones)
+- **Forest** — Light #dce3b7, Dark #3a6b3a (deep greens)
+- **Midnight** — Light #c8ccd0, Dark #2c3a50 (dark high-contrast)
 
 ---
 
 ## Piece Sets
 
-Three piece rendering styles:
+Four piece rendering styles:
 
-- **Unicode** — Standard chess Unicode characters (default)
+- **Merida** — Bold, high-contrast Unicode pieces with text-shadow depth (new default)
+- **Unicode** — Standard chess Unicode characters
 - **Symbols** — Warm golden/amber tones for a unique look
 - **Outlined** — Transparent pieces with visible outlines
 
@@ -364,6 +375,19 @@ Sounds are generated programmatically using the Web Audio API — no audio files
 - **Promotion** — Bright ascending note
 
 Sound can be toggled on/off in the Settings panel.
+
+---
+
+## PWA Support
+
+Chess by Sparsh is a Progressive Web App:
+
+- **Installable:** Add to your home screen on mobile and desktop browsers
+- **Offline support:** Basic service worker caches the app shell for offline access
+- **Standalone mode:** Runs without browser chrome when installed
+- **App icons:** Sage-green gradient icons with chess pawn symbol for home screen
+- **Theme color:** Matching sage-green (#5a7d5a) for browser chrome and splash screen
+- **iOS support:** apple-mobile-web-app meta tags for Safari home screen experience
 
 ---
 
@@ -434,8 +458,9 @@ No roadmap item should be treated as promised until it is implemented, tested, a
 | `v0.3.x` | Engine Strength Release: Club/Expert engine upgrade, quiescence, TT, MVV-LVA, improved eval |
 | `v0.4.x` | **Gameplay Product Polish: Undo, resign, PGN, themes, piece sets, sound, mobile** |
 | `v0.5.x` | **Stockfish Nightmare Release: Real chess engine integration via WASM** |
-| `v0.6.x` | Optional engine-assisted analysis with clear labeling |
-| `v0.7.x` | Optional online play after design boundaries are documented |
+| `v0.6.x` | **Visual & UX Refinement: Animations, PWA, accessibility, premium piece set, richer themes** |
+| `v0.7.x` | Optional engine-assisted analysis with clear labeling |
+| `v0.8.x` | Optional online play after design boundaries are documented |
 
 See [ROADMAP.md](ROADMAP.md) for the full versioned roadmap with principles and scope guidance.
 

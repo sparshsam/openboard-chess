@@ -7,6 +7,25 @@ export interface PieceInfo {
   type: string;
 }
 
+const PIECE_TYPE_NAMES: Record<string, string> = {
+  k: 'king',
+  q: 'queen',
+  r: 'rook',
+  b: 'bishop',
+  n: 'knight',
+  p: 'pawn',
+};
+
+function getSquareAriaLabel(
+  piece: PieceInfo | null,
+  square: ChessSquare
+): string {
+  if (!piece) return `Empty square ${square}`;
+  const colorName = piece.color === 'w' ? 'White' : 'Black';
+  const typeName = PIECE_TYPE_NAMES[piece.type] ?? piece.type;
+  return `${colorName} ${typeName} at ${square}`;
+}
+
 interface SquareProps {
   square: ChessSquare;
   piece: PieceInfo | null;
@@ -28,20 +47,28 @@ export default function Square({
   rankLabel,
   fileLabel,
   onClick,
-  pieceSet = 'unicode',
+  pieceSet = 'merida',
 }: SquareProps) {
   const colorClass = isLight ? 'square-light' : 'square-dark';
+  const selectedClass = isSelected ? ' square-selected' : '';
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+    // Arrow keys handled at board level, but allow bubbling
+  };
 
   return (
     <div
-      className={'square ' + colorClass + (isSelected ? ' square-selected' : '')}
+      className={'square ' + colorClass + selectedClass}
       data-square={square}
       onClick={onClick}
-      role="button"
+      role="gridcell"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onClick();
-      }}
+      onKeyDown={handleKeyDown}
+      aria-label={getSquareAriaLabel(piece, square)}
     >
       {rankLabel && <span className="label-rank">{rankLabel}</span>}
       {fileLabel && <span className="label-file">{fileLabel}</span>}

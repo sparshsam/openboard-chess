@@ -27,12 +27,18 @@
   letter-spacing: -0.01em;
 }
 
+@media (min-width: 901px) {
+  .app-header h1 {
+    font-size: 1.65rem;
+  }
+}
+
 .settings-toggle-btn {
   position: absolute;
   right: 1rem;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.35rem 0.7rem;
   font-size: 0.8rem;
   color: var(--text);
@@ -64,56 +70,56 @@
   overflow: hidden;
   width: min(60vh, 60vw, 480px);
   height: min(60vh, 60vw, 480px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   transition: box-shadow 0.2s;
 }
 
 .board:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
 }
 
 /* ============================================================
-   Board themes
+   Board themes — richer colors
    ============================================================ */
 
-/* Classic — current default */
+/* Classic — warm wood tones */
 .theme-classic .square-light {
-  background-color: #e8e0d4;
+  background-color: #f0d9b5;
 }
 .theme-classic .square-dark {
-  background-color: #6b8f71;
+  background-color: #b58863;
 }
 
-/* Marine */
+/* Marine — cool blues */
 .theme-marine .square-light {
-  background-color: #dee4ea;
+  background-color: #e8edf3;
 }
 .theme-marine .square-dark {
-  background-color: #5a7d9a;
+  background-color: #4a7a9c;
 }
 
-/* Ember */
+/* Ember — warm fire tones */
 .theme-ember .square-light {
-  background-color: #f5e0c3;
+  background-color: #f7e4c4;
 }
 .theme-ember .square-dark {
-  background-color: #b8623a;
+  background-color: #b85a30;
 }
 
-/* Forest */
+/* Forest — deep greens */
 .theme-forest .square-light {
-  background-color: #d4d9a8;
+  background-color: #dce3b7;
 }
 .theme-forest .square-dark {
-  background-color: #4a6b3a;
+  background-color: #3a6b3a;
 }
 
-/* Midnight */
+/* Midnight — dark, high contrast */
 .theme-midnight .square-light {
   background-color: #c8ccd0;
 }
 .theme-midnight .square-dark {
-  background-color: #3d4a5c;
+  background-color: #2c3a50;
 }
 
 /* ============================================================
@@ -130,7 +136,15 @@
   line-height: 1;
 }
 
-.square:focus {
+/* Focus-visible: visible focus ring for keyboard navigation */
+.square:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+  z-index: 2;
+}
+
+/* For mouse click focus: no outline */
+.square:focus:not(:focus-visible) {
   outline: none;
 }
 
@@ -167,18 +181,47 @@
 }
 
 /* ============================================================
-   Pieces — base + sets
+   Pieces — animations + sets
    ============================================================ */
+
+/* Piece appear animation */
+@keyframes piece-appear {
+  from {
+    opacity: 0.1;
+    transform: scale(0.6) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .piece {
   line-height: 1;
   pointer-events: none;
   z-index: 1;
+  animation: piece-appear 0.2s ease-out;
+  transition: transform 0.15s ease;
 }
 
+.piece:hover {
+  transform: scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piece {
+    animation: none;
+    transition: none;
+  }
+  .piece:hover {
+    transform: none;
+  }
+}
+
+/* Piece set: unicode (default fallback) */
 .piece-white {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
-
 .piece-black {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
@@ -206,17 +249,61 @@
   text-shadow: none;
 }
 
+/* Piece set: merida — bold, premium */
+.piece-set-merida.piece-white {
+  color: #2a2a2a;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05);
+  font-size: 1.15em;
+  font-weight: 700;
+}
+.piece-set-merida.piece-black {
+  color: #d4d4d4;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 0 3px rgba(0,0,0,0.1);
+  font-size: 1.15em;
+  font-weight: 700;
+}
+
 /* ============================================================
-   Legal move dots
+   Legal move dots — interaction feedback
    ============================================================ */
 .legal-move-dot {
   position: absolute;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background-color: rgba(0, 150, 0, 0.5);
+  background-color: rgba(0, 120, 0, 0.55);
   z-index: 0;
   pointer-events: none;
+  transition: transform 0.1s, background-color 0.1s;
+}
+
+.square:hover .legal-move-dot {
+  transform: scale(1.3);
+  background-color: rgba(0, 200, 0, 0.6);
+}
+
+/* ============================================================
+   Illegal move flash
+   ============================================================ */
+@keyframes illegal-flash {
+  0% { background-color: rgba(200, 50, 50, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.square-illegal {
+  animation: illegal-flash 0.3s ease-out;
+}
+
+/* ============================================================
+   Capture flash
+   ============================================================ */
+@keyframes capture-flash {
+  0% { background-color: rgba(200, 150, 0, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.square-capture {
+  animation: capture-flash 0.35s ease-out;
 }
 
 /* ============================================================
@@ -225,12 +312,14 @@
 .captured-pieces {
   width: 100%;
   max-width: min(60vh, 60vw, 480px);
-  padding: 0.25rem 0.5rem;
-  background: var(--bg-alt);
-  backdrop-filter: blur(4px);
-  border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  margin-bottom: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  background: rgba(250, 248, 240, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 0.35rem;
 }
 
 .captured-row {
@@ -301,7 +390,7 @@
 }
 
 /* ============================================================
-   Status bar
+   Status bar — glass effect
    ============================================================ */
 .status-bar {
   display: flex;
@@ -309,10 +398,12 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.5rem 1rem;
-  background: var(--bg-alt);
-  backdrop-filter: blur(4px);
-  border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: rgba(250, 248, 240, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
   width: 100%;
   max-width: min(60vh, 60vw, 480px);
 }
@@ -341,19 +432,40 @@
   white-space: nowrap;
 }
 
+.status-error {
+  font-size: 0.75rem;
+  color: #c0392b;
+  cursor: help;
+}
+
+/* Thinking dots animation */
+.thinking-dots::after {
+  content: '';
+  animation: thinking-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes thinking-dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+  100% { content: ''; }
+}
+
 /* ============================================================
-   Move history
+   Move history — glass effect
    ============================================================ */
 .move-history {
-  background: var(--bg-alt);
-  backdrop-filter: blur(4px);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: rgba(250, 248, 240, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
   padding: 0.75rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .move-history-title {
@@ -367,7 +479,8 @@
   max-height: 300px;
   overflow-y: auto;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .move-history-empty {
@@ -395,8 +508,9 @@
 
 .move-number {
   color: var(--text-muted);
-  min-width: 2em;
+  min-width: 2.2em;
   text-align: right;
+  font-size: 0.95em;
 }
 
 .move-white,
@@ -435,7 +549,7 @@
   margin-bottom: 0.4rem;
   padding: 0.3rem 0.5rem;
   background: rgba(90, 125, 90, 0.1);
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.8rem;
 }
 
@@ -449,20 +563,30 @@
 }
 
 /* ============================================================
-   Game controls
+   Game controls — glass effect
    ============================================================ */
 .game-controls {
+  background: rgba(250, 248, 240, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
+/* ============================================================
+   Buttons
+   ============================================================ */
 .btn {
   padding: 0.5rem 1rem;
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -539,7 +663,7 @@
   min-width: 150px;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.8rem;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   background: var(--bg);
@@ -559,12 +683,14 @@
 }
 
 /* ============================================================
-   Confirm dialog
+   Confirm dialog — glass overlay
    ============================================================ */
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -602,12 +728,14 @@
 }
 
 /* ============================================================
-   Promotion dialog
+   Promotion dialog — glass overlay
    ============================================================ */
 .promotion-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -640,7 +768,7 @@
   height: 56px;
   font-size: 2rem;
   border: 2px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-alt);
   cursor: pointer;
   display: flex;
@@ -655,7 +783,7 @@
 }
 
 /* ============================================================
-   Settings panel
+   Settings panel — glass overlay version
    ============================================================ */
 .settings-toggle {
   display: flex;
@@ -673,6 +801,35 @@
 .settings-toggle-label {
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+/* Board computer thinking hint */
+.board-computer-thinking {
+  will-change: transform;
+}
+
+/* ============================================================
+   Tablet breakpoint (641px – 900px)
+   ============================================================ */
+@media (min-width: 641px) and (max-width: 900px) {
+  .game-layout {
+    gap: 0.75rem;
+  }
+
+  .board {
+    width: min(50vh, 45vw, 400px);
+    height: min(50vh, 45vw, 400px);
+  }
+
+  .sidebar {
+    min-width: 180px;
+    max-width: 220px;
+  }
+
+  .status-bar,
+  .captured-pieces {
+    max-width: min(50vh, 45vw, 400px);
+  }
 }
 
 /* ============================================================
@@ -705,6 +862,17 @@
 
   .captured-pieces {
     max-width: 100%;
+    margin-bottom: 0.25rem;
+    /* Move captured pieces below board on mobile */
+    order: 1;
+  }
+
+  .board-section {
+    flex-direction: column;
+  }
+
+  .board-section .captured-pieces:first-child {
+    order: 1;
   }
 
   /* Touch-friendly buttons */
@@ -732,5 +900,30 @@
   /* Move history collapsible */
   .move-history-list {
     max-height: 180px;
+  }
+
+  /* GameControls buttons stack full-width */
+  .game-controls .btn {
+    width: 100%;
+  }
+
+  /* Settings panel slide-up from bottom on mobile */
+  .settings-panel {
+    top: auto;
+    bottom: 0;
+    height: auto;
+    max-height: 85vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    animation: slideUp 0.25s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .settings-overlay {
+    background: rgba(0, 0, 0, 0.4);
   }
 }

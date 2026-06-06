@@ -1,6 +1,6 @@
 interface PieceProps {
   piece: { color: 'w' | 'b'; type: string };
-  pieceSet?: 'unicode' | 'symbols' | 'outlined';
+  pieceSet?: 'unicode' | 'symbols' | 'outlined' | 'merida';
 }
 
 const PIECE_UNICODE: Record<string, Record<string, string>> = {

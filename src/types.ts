@@ -29,7 +29,7 @@ export type BoardOrientation = 'white-bottom' | 'flip-turn';
 export type BoardTheme = 'classic' | 'marine' | 'ember' | 'forest' | 'midnight';
 
 /** Piece set */
-export type PieceSet = 'unicode' | 'symbols' | 'outlined';
+export type PieceSet = 'unicode' | 'symbols' | 'outlined' | 'merida';
 
 /** Stockfish WASM loading state */
 export type StockfishStatus = 'unloaded' | 'loading' | 'ready' | 'error';

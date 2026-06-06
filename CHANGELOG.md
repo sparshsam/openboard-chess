@@ -6,6 +6,52 @@ This project follows practical versioned release notes rather than claiming stri
 
 ---
 
+## v0.6.0 — Visual & UX Refinement Release
+
+**Status:** Released
+
+### Added
+
+- **Piece move animations:** CSS keyframe animation (`piece-appear`) triggers when a piece appears on a square — fades in from 0.6 scale. Hover effect scales piece to 1.08×. Respects `prefers-reduced-motion`.
+- **Board interaction visual feedback:** Legal move dots enlarge and brighten on hover. Illegal move flash animation. Capture flash on the square. Selected square gets improved highlighting.
+- **Merida premium piece set:** Bold, high-contrast Unicode rendering with slightly larger size (1.15em), text-shadow for depth, and font-weight 700. Dark pieces get light-grey color for high contrast, white pieces get dark-grey. Set as the new default.
+- **Richer board theme colors:** All 5 themes updated with better contrast and richer tones — Classic (warm wood), Marine (cool blues), Ember (warm fire), Forest (deep greens), Midnight (dark high-contrast).
+- **Subtle glass/shadow effects:** All cards/panels (`game-controls`, `move-history`, `status-bar`, `captured-pieces`) get semi-transparent backgrounds with `backdrop-filter: blur(12px)`, subtle borders, and elevated box-shadows. Overlays use `backdrop-filter: blur(4px)`.
+- **PWA support:** `manifest.json` with app icons, service worker (`sw.js`) for offline caching, `theme-color` meta tag, Apple touch icon and meta tags for iOS home screen.
+- **Service worker:** Registers on app load for basic offline support — caches index.html, manifest, and serves from cache on fetch.
+- **App icons:** SVG icons (192×192 and 512×512) with sage-green gradient background and chess pawn symbol.
+- **Accessibility improvements:**
+  - Skip-to-content link at top of page (hidden until focused)
+  - Board has `role="grid"` and `aria-label="Chess board"`
+  - Each square has `role="gridcell"` and `aria-label` describing piece type/color/square
+  - Keyboard arrow-key navigation between squares
+  - Visible focus-visible indicator on squares (`2px solid accent`)
+  - `prefers-reduced-motion` reduces all animations/transitions to 0.01ms
+- **Tablet breakpoint (641–900px):** Board sizes to `min(50vh, 45vw, 400px)`, sidebar to 180px min-width, smaller gap.
+- **Mobile improvements:** Settings panel slides up from bottom, GameControls buttons are full-width, captured pieces moved below board, status-bar compact.
+- **Thinking animation dots:** Status bar shows animated dots while computer is processing.
+- **Board computer thinking class:** `will-change: transform` hint applied during engine computation.
+
+### Changed
+
+- **Default piece set changed** from "Unicode" to "Merida" in localStorage defaults.
+- **Button border-radius** increased from 6px to 8px for main action buttons, 10px for promotion buttons.
+- **Card/panel border-radius** standardized to 8px.
+- **Board shadow** upgraded to `0 4px 20px` for softer, deeper shadow.
+- **Legal move dots** use darker green (`rgba(0, 120, 0, 0.55)`) for better contrast.
+- **Move history font-size** increased slightly to 0.9rem for readability.
+- **Move number width** increased to 2.2em.
+- **Focus handling:** `outline: none` removed on `.square:focus` in favor of `focus-visible` visible outline.
+- **Spacing & typography polish:** Consistent padding, better line-height, slightly larger h1 on desktop.
+- **Version bumped** to 0.6.0.
+
+### Fixed
+
+- `thinking-dots` CSS animation uses `::after` pseudo-element correctly.
+- All existing features (undo, restart, resign, PGN, FEN, themes, piece sets, sounds, Stockfish) verified preserved.
+
+---
+
 ## v0.5.1 — Local Runtime & Deployment Independence
 
 **Status:** Released
