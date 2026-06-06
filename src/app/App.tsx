@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import Board from '../components/Board/Board';
 import MoveHistory from '../components/Game/MoveHistory';
 import StatusBar from '../components/Game/StatusBar';
