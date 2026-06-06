@@ -1,8 +1,17 @@
 import { Chess } from 'chess.js';
 import type { Square as ChessSquare } from 'chess.js';
 import type { Difficulty } from './difficulty';
-import { evaluateForTurn, PIECE_VALUES } from './evaluate';
+import {
+  DIFFICULTIES,
+  EVAL_FEATURES,
+  EXPERT_DEPTH,
+  EXPERT_THINK_TIME_MS,
+} from './difficulty';
+import { evaluateForTurn } from './evaluate';
 import { getTable, mirrorRows } from './pieceSquareTables';
+import { quiescenceSearch } from './quiescence';
+import { getOrderedMoves } from './moveOrdering';
+import { TranspositionTable, NodeType } from './transpositionTable';
 
 /** A move result with source and destination squares */
 export interface SquareMove {
@@ -40,8 +49,14 @@ export async function getComputerMove(
       selected = casualMove(game, moves);
       break;
     case 'club':
-      selected = clubMove(game, moves);
+      selected = clubMove(game);
       break;
+    case 'expert':
+      selected = expertMove(game);
+      break;
+    /* Nightmare difficulty is documented in difficulty.ts but excluded from the
+     * Difficulty type union. It requires Stockfish WASM integration and will be
+     * added when the engine is properly bundled. */
     default:
       selected = beginnerMove(game, moves);
   }
@@ -50,6 +65,10 @@ export async function getComputerMove(
 }
 
 // ── Beginner: random with slight weighting ──────────────────────────
+
+const PIECE_VALUES_BEGINNER: Record<string, number> = {
+  p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000,
+};
 
 function beginnerMove(game: Chess, moves: ChessMove[]): SquareMove {
   // 20% chance of a random blunder (just pick any move with no weighting)
@@ -63,7 +82,7 @@ function beginnerMove(game: Chess, moves: ChessMove[]): SquareMove {
 
     // Bonus for capturing high-value pieces
     if (m.captured) {
-      const capturedValue = PIECE_VALUES[m.captured] ?? 0;
+      const capturedValue = PIECE_VALUES_BEGINNER[m.captured] ?? 0;
       score += capturedValue * 0.5;
     }
 
@@ -101,13 +120,14 @@ function beginnerMove(game: Chess, moves: ChessMove[]): SquareMove {
 // ── Casual: 1-ply minimax with material + PST ──────────────────────
 
 function casualMove(game: Chess, moves: ChessMove[]): SquareMove {
+  const ef = EVAL_FEATURES.casual;
   let bestMove: ChessMove | null = null;
   let bestScore = -Infinity;
 
   for (const move of moves) {
     const g = new Chess(game.fen());
     g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
-    const score = evaluateForTurn(g, game.turn() as 'w' | 'b');
+    const score = evaluateForTurn(g, game.turn() as 'w' | 'b', ef);
 
     if (score > bestScore) {
       bestScore = score;
@@ -119,84 +139,323 @@ function casualMove(game: Chess, moves: ChessMove[]): SquareMove {
   return moveToSquareMove(bestMove);
 }
 
-// ── Club: 2-ply minimax with alpha-beta ────────────────────────────
+// ── Club: 3-ply + quiescence with alpha-beta ───────────────────────
 
-function clubMove(game: Chess, moves: ChessMove[]): SquareMove {
-  let bestMove: ChessMove | null = null;
+function clubMove(game: Chess): SquareMove {
+  const config = DIFFICULTIES.club;
+  const depth = config.depth;
+  const maximizingColor = game.turn() as 'w' | 'b';
+
+  // Use MVV-LVA ordering for Club
+  const orderedMoves = getOrderedMoves(game);
+
+  let bestMove: { from: string; to: string; promotion?: string } | null = null;
   let bestScore = -Infinity;
 
-  for (const move of moves) {
+  for (const move of orderedMoves) {
     const g = new Chess(game.fen());
     g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
 
-    const score = minimax(g, 2, -Infinity, Infinity, game.turn() as 'w' | 'b');
+    const score = minimaxWithQs(
+      g,
+      depth - 1,
+      -Infinity,
+      Infinity,
+      maximizingColor,
+      depth - 1
+    );
 
     if (score > bestScore) {
       bestScore = score;
-      bestMove = move;
+      bestMove = { from: move.from, to: move.to, promotion: move.promotion };
     }
   }
 
-  if (!bestMove) return pickRandom(moves);
-  return moveToSquareMove(bestMove);
+  if (!bestMove) {
+    const fallback = game.moves({ verbose: true });
+    return pickRandom(fallback);
+  }
+
+  return {
+    from: bestMove.from as ChessSquare,
+    to: bestMove.to as ChessSquare,
+    promotion: bestMove.promotion as 'q' | 'r' | 'b' | 'n' | undefined,
+  };
 }
+
+// ── Expert: iterative deepening + TT ───────────────────────────────
+
+const expertTT = new TranspositionTable();
+
+function expertMove(game: Chess): SquareMove {
+  const maximizingColor = game.turn() as 'w' | 'b';
+
+  // Clear TT on each new root search
+  expertTT.clear();
+
+  const startTime = Date.now();
+  const maxTime = EXPERT_THINK_TIME_MS;
+  const maxDepth = EXPERT_DEPTH;
+
+  let bestMove: { from: string; to: string; promotion?: string } | null = null;
+
+  // Iterative deepening: search depth 1, 2, 3, ... up to maxDepth or time
+  for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
+    expertTT.newIteration();
+
+    const result = searchRoot(
+      game,
+      currentDepth,
+      maximizingColor,
+      startTime,
+      maxTime
+    );
+
+    if (result.timedOut) {
+      // Use the best move from previous completed depth
+      break;
+    }
+
+    bestMove = result.bestMove;
+
+    // Check time after each depth
+    if (Date.now() - startTime > maxTime * 0.8) {
+      break;
+    }
+  }
+
+  if (!bestMove) {
+    const fallback = game.moves({ verbose: true });
+    return pickRandom(fallback);
+  }
+
+  return {
+    from: bestMove.from as ChessSquare,
+    to: bestMove.to as ChessSquare,
+    promotion: bestMove.promotion as 'q' | 'r' | 'b' | 'n' | undefined,
+  };
+}
+
+interface RootSearchResult {
+  bestMove: { from: string; to: string; promotion?: string } | null;
+  timedOut: boolean;
+}
+
+function searchRoot(
+  game: Chess,
+  depth: number,
+  maximizingColor: 'w' | 'b',
+  startTime: number,
+  maxTime: number
+): RootSearchResult {
+  const ttBest = expertTT.getBestMove(game.fen());
+  const orderedMoves = getOrderedMoves(game, ttBest);
+
+  let bestMove: { from: string; to: string; promotion?: string } | null = null;
+  let bestScore = -Infinity;
+  let alpha = -Infinity;
+  const beta = Infinity;
+
+  for (const move of orderedMoves) {
+    if (Date.now() - startTime > maxTime) {
+      return { bestMove, timedOut: true };
+    }
+
+    const g = new Chess(game.fen());
+    g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+
+    const score = alphaBetaWithTT(
+      g,
+      depth - 1,
+      alpha,
+      beta,
+      maximizingColor,
+      depth - 1,
+      expertTT,
+      startTime,
+      maxTime
+    );
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = { from: move.from, to: move.to, promotion: move.promotion };
+    }
+
+    alpha = Math.max(alpha, score);
+  }
+
+  // Store root move in TT
+  if (bestMove) {
+    expertTT.store(
+      game.fen(),
+      depth,
+      bestScore,
+      NodeType.Exact,
+      bestMove
+    );
+  }
+
+  return { bestMove, timedOut: false };
+}
+
+// ── Core Search Functions ──────────────────────────────────────────
 
 /**
- * Minimax with alpha-beta pruning.
- * @param game - current position
- * @param depth - remaining depth
- * @param alpha - alpha value for pruning
- * @param beta - beta value for pruning
- * @param maximizingColor - the color we're maximizing for
+ * Minimax with alpha-beta and quiescence search at leaf nodes.
+ * Used by Club difficulty.
  */
-function minimax(
+function minimaxWithQs(
   game: Chess,
   depth: number,
   alpha: number,
   beta: number,
-  maximizingColor: 'w' | 'b'
+  maximizingColor: 'w' | 'b',
+  qsDepth: number
 ): number {
-  if (depth === 0 || game.isGameOver()) {
-    // Terminal evaluation
-    if (game.isCheckmate()) {
-      return game.turn() === maximizingColor ? -99999 + (3 - depth) * 100 : 99999 - (3 - depth) * 100;
-    }
-    if (game.isDraw()) return 0;
-    return evaluateForTurn(game, maximizingColor);
+  const isMaximizing = game.turn() === maximizingColor;
+
+  // Terminal check
+  if (game.isCheckmate()) {
+    return isMaximizing ? -99999 + (10 - depth) * 100 : 99999 - (10 - depth) * 100;
+  }
+  if (game.isDraw()) return 0;
+
+  // Quiescence at leaf nodes
+  if (depth <= 0) {
+    return quiescenceSearch(game, alpha, beta, maximizingColor);
   }
 
-  const moves = game.moves({ verbose: true });
+  const moves = getOrderedMoves(game);
 
-  // Move ordering: captures first, checks, then rest
-  moves.sort((a, b) => {
-    const aVal = a.captured ? (PIECE_VALUES[a.captured] ?? 0) : 0;
-    const bVal = b.captured ? (PIECE_VALUES[b.captured] ?? 0) : 0;
-    return bVal - aVal;
-  });
-
-  if (game.turn() === maximizingColor) {
+  if (isMaximizing) {
     let maxEval = -Infinity;
     for (const move of moves) {
       const g = new Chess(game.fen());
       g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
-      const score = minimax(g, depth - 1, alpha, beta, maximizingColor);
+
+      const score = minimaxWithQs(g, depth - 1, alpha, beta, maximizingColor, qsDepth);
       maxEval = Math.max(maxEval, score);
       alpha = Math.max(alpha, score);
-      if (beta <= alpha) break; // prune
+      if (beta <= alpha) break;
     }
-    return maxEval;
+    return maxEval === -Infinity ? quiescenceSearch(game, alpha, beta, maximizingColor) : maxEval;
   } else {
     let minEval = Infinity;
     for (const move of moves) {
       const g = new Chess(game.fen());
       g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
-      const score = minimax(g, depth - 1, alpha, beta, maximizingColor);
+
+      const score = minimaxWithQs(g, depth - 1, alpha, beta, maximizingColor, qsDepth);
       minEval = Math.min(minEval, score);
       beta = Math.min(beta, score);
-      if (beta <= alpha) break; // prune
+      if (beta <= alpha) break;
     }
-    return minEval;
+    return minEval === Infinity ? quiescenceSearch(game, alpha, beta, maximizingColor) : minEval;
   }
+}
+
+/**
+ * Alpha-beta search with transposition table support.
+ * Used by Expert difficulty.
+ */
+function alphaBetaWithTT(
+  game: Chess,
+  depth: number,
+  alpha: number,
+  beta: number,
+  maximizingColor: 'w' | 'b',
+  maxDepth: number,
+  tt: TranspositionTable,
+  startTime: number,
+  maxTime: number
+): number {
+  const isMaximizing = game.turn() === maximizingColor;
+
+  // Time check (every 1024 nodes approximated through depth check)
+  // We check at the top of each call to avoid deep timeouts mid-search
+  if (depth <= 0) {
+    // Quiescence at leaf
+    return quiescenceSearch(game, alpha, beta, maximizingColor);
+  }
+
+  // Check terminal
+  if (game.isCheckmate()) {
+    return isMaximizing ? -99999 + (10 - maxDepth + depth) * 100 : 99999 - (10 - maxDepth + depth) * 100;
+  }
+  if (game.isDraw()) return 0;
+
+  // Transposition table probe
+  const ttEntry = tt.probe(game.fen(), depth);
+  if (ttEntry) {
+    const ttScore = ttEntry.score;
+    switch (ttEntry.nodeType) {
+      case NodeType.Exact:
+        return ttScore;
+      case NodeType.LowerBound:
+        alpha = Math.max(alpha, ttScore);
+        break;
+      case NodeType.UpperBound:
+        beta = Math.min(beta, ttScore);
+        break;
+    }
+    if (alpha >= beta) return ttScore;
+  }
+
+  // Null move pruning is intentionally omitted.
+  // chess.js doesn't support null moves (passing the turn), which would be required
+  // for proper null move pruning. This optimization can be added later if needed.
+
+  // Get moves with TT best move for ordering
+  const ttBest = tt.getBestMove(game.fen());
+  const moves = getOrderedMoves(game, ttBest);
+
+  let bestScore = isMaximizing ? -Infinity : Infinity;
+  let nodeType: NodeType = NodeType.UpperBound;
+  let bestMove: { from: string; to: string; promotion?: string } | null = null;
+
+  if (isMaximizing) {
+    for (const move of moves) {
+      const g = new Chess(game.fen());
+      g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+
+      const score = alphaBetaWithTT(g, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = { from: move.from, to: move.to, promotion: move.promotion };
+      }
+      alpha = Math.max(alpha, score);
+      if (beta <= alpha) {
+        nodeType = NodeType.LowerBound;
+        break;
+      }
+    }
+  } else {
+    for (const move of moves) {
+      const g = new Chess(game.fen());
+      g.move({ from: move.from, to: move.to, promotion: move.promotion ?? undefined });
+
+      const score = alphaBetaWithTT(g, depth - 1, alpha, beta, maximizingColor, maxDepth, tt, startTime, maxTime);
+      if (score < bestScore) {
+        bestScore = score;
+        bestMove = { from: move.from, to: move.to, promotion: move.promotion };
+      }
+      beta = Math.min(beta, score);
+      if (beta <= alpha) {
+        nodeType = NodeType.LowerBound;
+        break;
+      }
+    }
+  }
+
+  // If we didn't get a cutoff, it's an exact node
+  if (nodeType === NodeType.UpperBound && bestScore !== (isMaximizing ? -Infinity : Infinity)) {
+    nodeType = NodeType.Exact;
+  }
+
+  // Store in TT
+  tt.store(game.fen(), depth, bestScore, nodeType, bestMove ?? undefined);
+
+  return bestScore;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────

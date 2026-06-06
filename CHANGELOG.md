@@ -6,6 +6,43 @@ This project follows practical versioned release notes rather than claiming stri
 
 ---
 
+## v0.3.0 — Engine Strength Release
+
+**Status:** Released
+
+### Added
+
+- **Expert difficulty (~1700)** with 5-ply iterative deepening search, transposition caching (262K-entry table), and quiescence search
+- **Quiescence search** for tactical stability at search horizons (captures + promotions searched until quiet positions)
+- **Transposition table cache** for Expert difficulty — avoids re-searching positions and provides best-move hints for ordering
+- **MVV-LVA move ordering** (Most Valuable Victim - Least Valuable Attacker) for better alpha-beta pruning efficiency
+- **Improved evaluation:**
+  - **Mobility counting** — approximate legal move counts for each piece type (Club+)
+  - **Pawn structure** — doubled pawn penalty (−15), isolated pawn penalty (−20), passed pawn bonus (+10–70)
+  - **Piece development** — bonuses for developed knights/bishops, penalties for undeveloped back-rank pieces (Club+)
+  - **Space advantage** — center and extended-center square control (Club+)
+  - **Improved king safety** — pawn shield at two depths, castled king bonus, open file penalty, center-penalty in middlegame
+
+### Changed
+
+- **Club difficulty upgraded:** now 3-ply + quiescence search with MVV-LVA ordering and full evaluation (was 2-ply without quiescence)
+- **Casual evaluation** now passes proper evaluation features config instead of always using defaults
+- Evaluation function now takes a configurable `EvalFeatures` parameter per difficulty level
+- Engine architecture refactored for cleaner separation — quiescence, move ordering, and transposition logic extracted to dedicated modules
+
+### Disabled
+
+- **Nightmare difficulty** placeholder added but hidden from the UI — requires Stockfish WASM integration
+
+### Documentation
+
+- Version badges updated to 0.3.0
+- Computer opponent tables updated with new search depths and features
+- Roadmap updated to reflect shipped v0.3.0
+- AGENTS.md updated with new difficulty descriptions
+
+---
+
 ## v0.2.1 — Presentation Polish
 
 **Status:** Released
@@ -81,7 +118,7 @@ This project follows practical versioned release notes rather than claiming stri
 ### Added
 
 - MIT `LICENSE` file.
-- `.editorconfig` with sensible defaults (2-space indent, UTF-8, LF line endings).
+- `.editorconfig` with sensible defaults (2-space indent, UTF-8, UTF-8, LF line endings).
 - CI workflow (`.github/workflows/ci.yml`) running install, lint, test, and build on Node.js 20.
 
 ---

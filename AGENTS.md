@@ -9,7 +9,7 @@ This file gives AI coding agents a compact operating brief for **Chess by Sparsh
 - **Visible name:** Chess by Sparsh
 - **Repository slug:** `chess-by-sparsh`
 - **Package name:** `chess-by-sparsh` (in `package.json`)
-- **Current release:** `v0.2.0`
+- **Current release:** `v0.3.0`
 - **Product type:** Local-first chess board with computer opponent
 - **License:** MIT
 - **Deployment:** Vercel (static SPA)
@@ -23,10 +23,11 @@ Use **Chess by Sparsh** in all visible product copy. Use `chess-by-sparsh` as th
 The current app supports:
 
 - Local two-player chess on the same device
-- User vs Computer chess with three difficulty bands:
+- User vs Computer chess with four difficulty bands:
   - **Beginner (~800):** Weighted random moves with occasional blunders
   - **Casual (~1000):** 1-ply minimax with material + PST evaluation
-  - **Club (~1400):** 2-ply alpha-beta search with material, PST, king safety, move ordering
+  - **Club (~1400):** 3-ply alpha-beta + quiescence, MVV-LVA ordering, full eval (mobility, pawn structure, development, space)
+  - **Expert (~1700):** 5-ply iterative deepening + transposition cache + quiescence, full eval
 - Accurate move validation through `chess.js`
 - Legal move highlighting
 - Algebraic move history
@@ -44,7 +45,7 @@ The current app supports:
 ```
 src/
   app/              — App.tsx, App.css, main.tsx, main.css
-  chess/            — AI engine (computer.ts, evaluate.ts, pieceSquareTables.ts, difficulty.ts)
+  chess/            — AI engine (computer.ts, evaluate.ts, pieceSquareTables.ts, difficulty.ts, moveOrdering.ts, transpositionTable.ts, quiescence.ts)
   components/       — UI components organized by area
     Board/          — Board.tsx, Square.tsx
     Game/           — MoveHistory.tsx, StatusBar.tsx
@@ -65,9 +66,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full architecture documentation inclu
 ## Computer Opponent Details
 
 - `src/chess/computer.ts` — exports `getComputerMove(game, difficulty): Promise<SquareMove>`
-- `src/chess/evaluate.ts` — position evaluation (material + PST + king safety)
+- `src/chess/evaluate.ts` — position evaluation (material + PST + king safety + mobility + pawn structure + development + space)
 - `src/chess/pieceSquareTables.ts` — standard PST arrays for all pieces
-- `src/chess/difficulty.ts` — types, config, labels, descriptions, disclaimer
+- `src/chess/difficulty.ts` — types, config, labels, descriptions, disclaimer, eval feature flags
+- `src/chess/moveOrdering.ts` — MVV-LVA scoring and sorting
+- `src/chess/transpositionTable.ts` — fixed-size (262K entry) transposition cache
+- `src/chess/quiescence.ts` — capture-only quiescence search for tactical stability
 - The computer plays Black; human plays White in Computer mode
 - A 500ms base delay (plus random offset up to 300ms) gives a natural "thinking" feel
 
@@ -141,7 +145,7 @@ Settings are stored in `localStorage` under the key `chess-by-sparsh-settings`.
 ```json
 {
   "gameMode": "computer" | "local",
-  "difficulty": "beginner" | "casual" | "club",
+  "difficulty": "beginner" | "casual" | "club" | "expert",
   "boardOrientation": "white-bottom" | "flip-turn"
 }
 ```

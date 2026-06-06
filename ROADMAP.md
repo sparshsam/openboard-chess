@@ -12,7 +12,7 @@ This document describes the planned direction for Chess by Sparsh. Roadmap items
 | v0.1.1 | Repository professionalization | Released |
 | v0.2.0 | Computer opponent + settings | Released |
 | v0.2.1 | Presentation polish | Released |
-| v0.3.x | PGN + saved games | Planned |
+| v0.3.x | Engine Strength Release | Released |
 | v0.4.x | Chess clocks | Backlog |
 | v0.5.x | Engine-assisted analysis | Future |
 | v0.6.x | Online play | Future |
@@ -54,21 +54,24 @@ This document describes the planned direction for Chess by Sparsh. Roadmap items
 
 ---
 
-## v0.3.x — PGN + Saved Games
+## v0.3.x — Engine Strength Release
 
-**Planned**
+**Released**
 
-- PGN export and import
-- Saved game list (multiple named slots)
-- Delete saved games
-- Board orientation controls (flip board button)
-- Accessibility improvements
-- Small UI refinements
+- Expert difficulty (~1700) with 5-ply iterative deepening, transposition cache, quiescence
+- Club difficulty upgraded to 3-ply + quiescence search
+- MVV-LVA move ordering for better alpha-beta pruning
+- Full evaluation with mobility, pawn structure, development, space
+- Quiescence search for tactical stability at search horizons
+- Transposition table (262K entries) for Expert caching
+- Nightmare difficulty placeholder (requires Stockfish WASM)
+- Version bumped to v0.3.0
 
 ### Design goals
-- PGN should round-trip correctly through chess.js
-- Saved games must survive browser data clearing warnings
-- Orientation flip should not reset game state
+- No backend, no Stockfish, no external dependencies
+- Local-first, all search runs in-browser
+- Transparent per-difficulty features (eval flags, search options)
+- Engines feel stronger but remain honest about being heuristic
 
 ---
 

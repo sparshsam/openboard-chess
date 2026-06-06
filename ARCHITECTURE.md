@@ -131,10 +131,13 @@ State lives in two custom hooks, consumed by `App` and passed down as props:
 
 | File | Responsibility |
 |---|---|
-| `difficulty.ts` | Type definitions, config records, UI options, disclaimer text |
+| `difficulty.ts` | Type definitions, config records, UI options, disclaimer text, eval feature flags |
 | `computer.ts` | `getComputerMove()` — async entry point with delay. Dispatches to per-difficulty functions. |
-| `evaluate.ts` | Board evaluation: `evaluate()` (full), `evaluateForTurn()` (minimax-ready), `materialCount()` (quick), `kingSafetyScore()` |
+| `evaluate.ts` | Board evaluation: `evaluate()` (full), `evaluateForTurn()` (minimax-ready), `materialCount()` (quick), king safety, mobility, pawn structure, development, space |
 | `pieceSquareTables.ts` | Standard PST arrays for all piece types, `getTable()`, `mirrorRows()` |
+| `moveOrdering.ts` | MVV-LVA scoring and sorting for alpha-beta pruning efficiency |
+| `transpositionTable.ts` | Fixed-size (262K entry) transposition cache for Expert difficulty |
+| `quiescence.ts` | Capture-only quiescence search for handling horizon effects |
 
 ### Search depth by difficulty
 
@@ -142,21 +145,28 @@ State lives in two custom hooks, consumed by `App` and passed down as props:
 |---|---|---|---|
 | Beginner | 0 (random) | Weighted random | Capture bonus, center preference, PST hints, 20% blunder rate |
 | Casual | 1 ply | Minimax | Material + PST evaluation |
-| Club | 2 ply | Alpha-beta pruning | Material + PST + king safety + move ordering |
+| Club | 3 ply + qs | Alpha-beta + quiescence | MVV-LVA ordering, full eval (mobility, pawn structure, dev, space) |
+| Expert | 5 ply + qs + TT | Iterative deepening + quiescence | Transposition cache, full eval, time-managed (2.5s/move) |
 
-### Evaluation heuristics (Club)
+### Evaluation heuristics (Club+)
 
 - **Material:** Standard centipawn values (p=100, n=320, b=330, r=500, q=900)
 - **Piece-Square Tables:** Standardized positional bonus arrays for each piece type
-- **King safety:** Pawn shield near king (+15 per pawn), open-file penalty near king (−10 per enemy rook/queen on adjacent files)
-- **Move ordering:** Captures sorted by captured piece value (improves alpha-beta pruning efficiency)
+- **King safety:** Pawn shield at two depths near king, castled king bonus (+20), open-file penalty near king (−15), center-penalty in middlegame
+- **Mobility:** Approximate legal move count per piece type, rewarded at ~5 cp per extra move
+- **Pawn structure:** Doubled pawn penalty (−15), isolated pawn penalty (−20), passed pawn bonus (+10–70 depending on rank)
+- **Piece development:** Bonus for centralized knights/bishops (+15), penalty for undeveloped back-rank pieces (−15)
+- **Space advantage:** Center and extended-center square control bonus (+10 per controlled center square)
+- **Move ordering:** MVV-LVA scoring (captured_value × 10 − attacker_value), promotions prioritized, TT best-move always first
 
 ### Design decisions
 
 - **No opening book:** The computer plays from any position without memorized lines. This keeps the AI footprint small and ensures predictable behavior at each difficulty level.
 - **No endgame tablebase:** Positions are evaluated heuristically. This is fine for the target difficulty bands.
 - **Async with delay:** `COMPUTER_DELAY_MS` (500ms) plus random offset gives a natural "thinking" feel. The delay runs as an async `Promise` + `setTimeout` to avoid blocking the UI.
-- **Clone-based search:** Each minimax ply clones the chess.js instance. This is simple and correct; performance is acceptable for 2-ply search.
+- **Clone-based search:** Each minimax ply clones the chess.js instance. This is simple and correct; performance is acceptable for 3–5 ply search.
+- **Transposition table:** Uses a lightweight FEN-hash function (not Zobrist) to avoid adding external dependencies. 262K entries provide good coverage for 5-ply search.
+- **Evaluation per feature flag:** Each difficulty level specifies which eval features to enable, keeping weaker levels fast and simple while allowing Club+ to use all heuristics.
 
 ---
 

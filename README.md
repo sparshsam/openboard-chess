@@ -7,7 +7,7 @@
   <p><strong>Play the computer or a friend. No accounts, no backend, no telemetry.</strong></p>
   <br />
   <div>
-    <img src="https://img.shields.io/badge/version-v0.2.0-green" alt="Version" />
+    <img src="https://img.shields.io/badge/version-v0.3.0-green" alt="Version" />
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
     <img src="https://img.shields.io/badge/React-20232A?logo=react" alt="React" />
@@ -99,7 +99,7 @@ npm run lint
 | Browser-local game persistence | Complete |
 | Responsive layout | Complete |
 | Rule-focused test coverage | Complete |
-| **Computer opponent (3 levels)** | **Complete** |
+| **Computer opponent (4 levels)** | **Complete** |
 | **Settings panel** | **Complete** |
 | **Game mode switching** | **Complete** |
 | **Board orientation setting** | **Complete** |
@@ -111,7 +111,8 @@ npm run lint
 |---|---|---|
 | Beginner | 800 | Weighted random — center preference, capture bonus, occasional blunders |
 | Casual | 1000 | 1-ply minimax — captures hanging pieces, avoids blunders |
-| Club | 1400 | 2-ply alpha-beta — material evaluation, piece-square tables, mobility, king safety |
+| Club | 1400 | 3-ply alpha-beta + quiescence — MVV-LVA ordering, full eval (mobility, pawn structure, dev, space) |
+| Expert | 1700 | 5-ply iterative deepening + TT + quiescence — tactical stability, full eval |
 
 > Rating-inspired skill bands, not official Elo ratings.
 
@@ -244,7 +245,7 @@ No roadmap item should be treated as promised until it is implemented, tested, a
 |---|---|
 | `v0.1.x` | Local play foundation — board, rules, moves, FEN, persistence |
 | `v0.2.x` | Computer opponent, settings panel, game mode switching |
-| `v0.3.x` | PGN support, saved game list, board orientation controls |
+| `v0.3.x` | Engine Strength Release: Club/Expert engine upgrade, quiescence, TT, MVV-LVA, improved eval |
 | `v0.4.x` | Optional clocks and timed local games |
 | `v0.5.x` | Optional engine-assisted analysis with clear labeling |
 | `v0.6.x` | Optional online play after design boundaries are documented |
