@@ -7,7 +7,7 @@
   <p><strong>Play the computer or a friend. No accounts, no backend, no telemetry.</strong></p>
   <br />
   <div>
-    <img src="https://img.shields.io/badge/version-v0.3.1-green" alt="Version" />
+    <img src="https://img.shields.io/badge/version-v0.4.0-green" alt="Version" />
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
     <img src="https://img.shields.io/badge/React-20232A?logo=react" alt="React" />
@@ -44,9 +44,17 @@ The product is designed around one idea: chess should be easy to start, locally 
 - User vs Computer mode with three difficulty bands
 - Local Two Player mode on the same device
 - FEN import and export for portable game state
+- PGN export (clipboard + download)
 - Browser-local persistence (game state + preferences)
 - Accurate chess rule validation via chess.js
 - A settings panel for game mode, difficulty, and board orientation
+- Undo, restart, and resign support
+- Move review / step-through mode
+- Captured pieces display
+- Board color themes (Classic, Marine, Ember, Forest, Midnight)
+- Multiple piece rendering sets (Unicode, Symbols, Outlined)
+- Web Audio API sound effects (moves, captures, checks, checkmate)
+- Warm, cozy UI with a carpet texture background
 
 ### What it IS NOT:
 - Not an online multiplayer platform
@@ -104,6 +112,17 @@ npm run lint
 | **Game mode switching** | **Complete** |
 | **Board orientation setting** | **Complete** |
 | **Settings persistence** | **Complete** |
+| **Warm carpet texture background** | **Complete (v0.4.0)** |
+| **Undo move** | **Complete (v0.4.0)** |
+| **Restart game** | **Complete (v0.4.0)** |
+| **Resign game** | **Complete (v0.4.0)** |
+| **PGN export (clipboard + download)** | **Complete (v0.4.0)** |
+| **Captured pieces display** | **Complete (v0.4.0)** |
+| **Move review / step-through mode** | **Complete (v0.4.0)** |
+| **Board color themes (5 themes)** | **Complete (v0.4.0)** |
+| **Piece rendering sets (3 styles)** | **Complete (v0.4.0)** |
+| **Sound effects (Web Audio API)** | **Complete (v0.4.0)** |
+| **Mobile layout improvements** | **Complete (v0.4.0)** |
 
 ### Computer Opponent
 
@@ -178,6 +197,8 @@ Chess by Sparsh is a single-page React application with no backend dependencies.
 │       ├── bug_report.md
 │       └── feature_request.md
 ├── assets/
+│   ├── backgrounds/
+│   │   └── carpet-texture.png      ← Warm background texture
 │   └── screenshots/
 │       └── chess-main.png
 ├── src/
@@ -185,13 +206,15 @@ Chess by Sparsh is a single-page React application with no backend dependencies.
 │   ├── chess/                — AI engine (computer, evaluate, PST, difficulty)
 │   ├── components/
 │   │   ├── Board/            — Board.tsx, Square.tsx
+│   │   ├── CapturedPieces/  — CapturedPieces.tsx ← New in v0.4.0
+│   │   ├── ConfirmDialog/   — ConfirmDialog.tsx  ← New in v0.4.0
 │   │   ├── Game/             — MoveHistory.tsx, StatusBar.tsx
 │   │   ├── GameControls/     — GameControls.tsx
 │   │   ├── Piece/            — Piece.tsx
 │   │   ├── PromotionDialog/  — PromotionDialog.tsx
 │   │   └── Settings/         — SettingsPanel, ModeSelector, DifficultySelector
 │   ├── hooks/                — useChessGame.ts, useSettings.ts
-│   ├── lib/                  — storage.ts
+│   ├── lib/                  — storage.ts, sounds.ts ← New in v0.4.0
 │   └── types/                — types.ts
 ├── ARCHITECTURE.md
 ├── ROADMAP.md
@@ -213,9 +236,58 @@ Chess by Sparsh is a single-page React application with no backend dependencies.
 | Chess rules | `chess.js` |
 | Board UI | Custom-rendered board |
 | AI | Heuristic minimax (no external engines) |
+| Sound | Web Audio API (no audio files) |
 | Testing | Vitest + Testing Library |
 | Persistence | localStorage |
 | Deployment | Vercel |
+
+---
+
+## Board Themes
+
+Choose from five board color themes in the Settings panel:
+
+- **Classic** — Light #e8e0d4, Dark #6b8f71 (default)
+- **Marine** — Light #dee4ea, Dark #5a7d9a
+- **Ember** — Light #f5e0c3, Dark #b8623a
+- **Forest** — Light #d4d9a8, Dark #4a6b3a
+- **Midnight** — Light #c8ccd0, Dark #3d4a5c
+
+---
+
+## Piece Sets
+
+Three piece rendering styles:
+
+- **Unicode** — Standard chess Unicode characters (default)
+- **Symbols** — Warm golden/amber tones for a unique look
+- **Outlined** — Transparent pieces with visible outlines
+
+---
+
+## Sound Effects
+
+Sounds are generated programmatically using the Web Audio API — no audio files needed. Each action has a distinct sound:
+
+- **Move** — Short soft click
+- **Capture** — Lower, slightly louder thud
+- **Check** — Urgent double beep
+- **Checkmate** — Triumphant rising tone
+- **Promotion** — Bright ascending note
+
+Sound can be toggled on/off in the Settings panel.
+
+---
+
+## Mobile Support
+
+The app is fully responsive and works on mobile devices:
+
+- Controls and move history appear below the board on small screens
+- Touch-friendly 44px minimum button heights
+- Full-width settings overlay
+- Collapsible move history
+- Board automatically sizes to `min(92vw, 400px)`
 
 ---
 
@@ -229,11 +301,9 @@ The following are intentionally deferred:
 - Engine analysis
 - Ratings, matchmaking, ladders, or tournaments
 - Server-side database storage
-- PGN import / export
-- Undo or takeback
-- Clocks or timed play
-- Sound effects or animations
+- PGN import
 - Drag-and-drop movement
+- Clocks or timed play
 
 No roadmap item should be treated as promised until it is implemented, tested, and released.
 
@@ -246,7 +316,7 @@ No roadmap item should be treated as promised until it is implemented, tested, a
 | `v0.1.x` | Local play foundation — board, rules, moves, FEN, persistence |
 | `v0.2.x` | Computer opponent, settings panel, game mode switching |
 | `v0.3.x` | Engine Strength Release: Club/Expert engine upgrade, quiescence, TT, MVV-LVA, improved eval |
-| `v0.4.x` | Optional clocks and timed local games |
+| `v0.4.x` | **Gameplay Product Polish: Undo, resign, PGN, themes, piece sets, sound, mobile** |
 | `v0.5.x` | Optional engine-assisted analysis with clear labeling |
 | `v0.6.x` | Optional online play after design boundaries are documented |
 

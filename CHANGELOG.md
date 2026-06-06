@@ -6,6 +6,36 @@ This project follows practical versioned release notes rather than claiming stri
 
 ---
 
+## v0.4.0 — Gameplay Product Polish Release
+
+**Status:** Released
+
+### Added
+
+- **Background texture:** Warm carpet texture background with semi-transparent warm beige/cream overlays for a cozy, premium feel.
+- **Warm UI theme:** Updated CSS variables with warmer tones, backdrop-filter blur effects on cards, and box shadows to make UI elements pop against the texture.
+- **Undo Move:** Undo the last move (or last 2 moves in computer mode). Game state, history, and FEN are properly restored.
+- **Restart Game:** Restart button with confirmation dialog. Resets all game state.
+- **Resign Game:** Resign button with confirmation dialog. Shows "White/Black resigned — Black/White wins!" message.
+- **PGN Export:** Export game as PGN. Copy to clipboard and download as `.pgn` file.
+- **Captured Pieces Display:** Two-row display showing captured white pieces (by black) and captured black pieces (by white), sorted by value.
+- **Move Review / Step-Through Mode:** Browse move history after or during a game. Previous/next navigation, clickable move rows, highlights current move, and a "Exit Review" button. Review mode is display-only and does not corrupt game state.
+- **Board Theme Selector:** Five board color themes — Classic, Marine, Ember, Forest, Midnight. Persisted to localStorage.
+- **Multiple Piece Sets:** Three piece rendering styles — Unicode (default), Symbols (warm golden/amber), Outlined (transparent with stroke). Persisted to localStorage.
+- **Sound Effects (Web Audio API):** Programmatic sounds for moves, captures, checks, checkmate, promotions, and illegal moves. No audio files needed. Sound on/off toggle in Settings.
+- **Better Mobile Layout:** Controls below board on mobile (<640px), 44px minimum touch targets, board width `min(92vw, 400px)`, full-width settings overlay on mobile, collapsible move history.
+
+### Changed
+
+- **AppSettings** — Added `boardTheme`, `pieceSet`, `soundEnabled` fields. Updated defaults and persistence.
+- **Settings panel** — Added board theme selector, piece set selector, sound on/off toggle.
+- **Layout** — Captured pieces bar above board. Review controls in move history.
+- **CSS overhaul** — Warmer color palette, backdrop-filter blur, texture background, board theme variables, piece set CSS classes, mobile improvements.
+- **README.md** — Updated feature table, added sound/theme/piece set/mobile sections.
+- **CHANGELOG updated** with v0.4.0 entry.
+
+---
+
 ## v0.3.1 — Engine Validation & Optimization Release
 
 **Status:** Released
@@ -182,9 +212,9 @@ This project follows practical versioned release notes rather than claiming stri
 - Click-to-select interaction model.
 - Legal move highlighting.
 - Legal move validation through `chess.js`.
-- Support for castling, en passant, promotion, check, checkmate, stalemate, and draw states through the rules layer.
+- Support for castling, en passant, check, checkmate, stalemate, and draw states through the rules layer.
 - Pawn promotion dialog.
-- Move history display.
+- Algebraic move history.
 - FEN export.
 - FEN import.
 - Browser-local save and restore through `localStorage`.
