@@ -38,32 +38,58 @@ export function mvvLvaScore(move: ChessMoveVerbose): number {
 }
 
 /**
+ * Determine if a move gives check by making the move on a cloned board.
+ * This is accurate but involves creating a new Chess object, so it should
+ * only be called for the top ~8 moves in the ordering (captures + promotions + TT best).
+ */
+function givesCheck(game: Chess, from: string, to: string, promotion?: string): boolean {
+  try {
+    const g = new Chess(game.fen());
+    g.move({ from, to, promotion });
+    return g.isCheck();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Sort moves by MVV-LVA score (descending) for better alpha-beta pruning.
  * The best captures are searched first.
+ * For the top ~8 moves, we also check if the move gives check (accurate).
  */
 export function orderMoves(
   moves: ChessMoveVerbose[],
   bestMove?: ChessMoveVerbose | null
 ): ChessMoveVerbose[] {
-  return [...moves].sort((a, b) => {
-    // If we have a best move from the transposition table, search it first
-    if (bestMove) {
-      if (a.from === bestMove.from && a.to === bestMove.to && a.promotion === bestMove.promotion)
-        return -1;
-      if (b.from === bestMove.from && b.to === bestMove.to && b.promotion === bestMove.promotion)
-        return 1;
-    }
+  // First, separate captures/promotions from quiet moves
+  const tactical = moves.filter(m => m.captured || m.promotion);
+  const quiet = moves.filter(m => !m.captured && !m.promotion);
 
-    // Check if move gives check (simple heuristic: see if the target piece is king)
-    // Full check detection is expensive, so we approximate with king capture detection
-    const aKingCapture = a.captured === 'k' ? 10000 : 0;
-    const bKingCapture = b.captured === 'k' ? 10000 : 0;
+  // Sort tactical by MVV-LVA
+  tactical.sort((a, b) => mvvLvaScore(b) - mvvLvaScore(a));
 
-    const aScore = mvvLvaScore(a) + aKingCapture;
-    const bScore = mvvLvaScore(b) + bKingCapture;
-
-    return bScore - aScore;
+  // Sort quiet by piece-square table + piece value (simple heuristic)
+  quiet.sort((a, b) => {
+    const aScore = PIECE_VALUES[a.piece] ?? 0;
+    const bScore = PIECE_VALUES[b.piece] ?? 0;
+    return bScore - aScore; // Develop high-value pieces later
   });
+
+  // Combine: tactical first (best captures), then quiet moves
+  const ordered = [...tactical, ...quiet];
+
+  // If we have a TT best move, promote it to the front
+  if (bestMove) {
+    const idx = ordered.findIndex(
+      m => m.from === bestMove.from && m.to === bestMove.to && (m.promotion ?? null) === (bestMove.promotion ?? null)
+    );
+    if (idx > 0) {
+      const [ttMove] = ordered.splice(idx, 1);
+      ordered.unshift(ttMove);
+    }
+  }
+
+  return ordered;
 }
 
 /**
@@ -86,5 +112,36 @@ export function getOrderedMoves(
     ) ?? null;
   }
 
-  return orderMoves(rawMoves, ttBest);
+  const ordered = orderMoves(rawMoves, ttBest);
+
+  // For the top 5-8 moves, insert check detection as a secondary ordering factor.
+  // This is expensive (clone per move) so we limit to the most promising moves.
+  const checkDetectionLimit = Math.min(8, ordered.length);
+
+  // Score check-giving moves higher among quiet moves
+  // (captures already get MVV-LVA priority)
+  for (let i = 0; i < checkDetectionLimit; i++) {
+    const m = ordered[i];
+    if (!m.captured && !m.promotion) {
+      // Only check quiet moves — captures are already ordered by MVV-LVA
+      const moveGivesCheck = givesCheck(game, m.from, m.to, m.promotion);
+      if (moveGivesCheck) {
+        // Move it ahead of non-checking moves
+        // Find the right spot: just after all captures and check-giving quiet moves
+        let insertPos = 0;
+        for (let j = 0; j < i; j++) {
+          const candidate = ordered[j];
+          if (candidate.captured || candidate.promotion || candidate.san === m.san) {
+            insertPos = j + 1;
+          }
+        }
+        if (insertPos < i) {
+          ordered.splice(i, 1);
+          ordered.splice(insertPos, 0, m);
+        }
+      }
+    }
+  }
+
+  return ordered;
 }
