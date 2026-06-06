@@ -218,11 +218,13 @@
   }
 }
 
-/* Piece set: unicode (default fallback) */
-.piece-white {
+/* Piece set: unicode -- clean, standard unicode characters */
+.piece-set-unicode.piece-white {
+  color: var(--text);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
-.piece-black {
+.piece-set-unicode.piece-black {
+  color: var(--text);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
