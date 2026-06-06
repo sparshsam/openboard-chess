@@ -13,6 +13,7 @@ interface BoardProps {
   onSquareClick: (square: ChessSquare) => void;
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
+  isComputerThinking?: boolean;
 }
 
 export default function Board({
@@ -21,7 +22,8 @@ export default function Board({
   legalMoves,
   onSquareClick,
   boardTheme = 'classic',
-  pieceSet = 'unicode',
+  pieceSet = 'merida',
+  isComputerThinking = false,
 }: BoardProps) {
   const squares: React.ReactNode[] = [];
 
@@ -55,5 +57,59 @@ export default function Board({
     });
   });
 
-  return <div className={'board theme-' + boardTheme}>{squares}</div>;
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (document.activeElement === e.currentTarget) {
+      // Board-level key handler for arrow navigation between squares
+      const focusedSquare = document.activeElement?.getAttribute('data-square') as ChessSquare | null;
+      if (!focusedSquare) return;
+
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        return;
+      }
+
+      const file = focusedSquare.charCodeAt(0) - 97; // a=0, h=7
+      const rank = parseInt(focusedSquare[1]) - 1; // 1=0, 8=7
+
+      let newFile = file;
+      let newRank = rank;
+      switch (e.key) {
+        case 'ArrowUp':
+          newRank = Math.min(rank + 1, 7);
+          break;
+        case 'ArrowDown':
+          newRank = Math.max(rank - 1, 0);
+          break;
+        case 'ArrowLeft':
+          newFile = Math.max(file - 1, 0);
+          break;
+        case 'ArrowRight':
+          newFile = Math.min(file + 1, 7);
+          break;
+        default:
+          return;
+      }
+
+      e.preventDefault();
+      const targetSquare =
+        String.fromCharCode(97 + newFile) + (newRank + 1);
+      const target = document.querySelector(
+        `[data-square="${targetSquare}"]`
+      );
+      if (target instanceof HTMLElement) target.focus();
+    }
+  };
+
+  const thinkingClass = isComputerThinking ? ' board-computer-thinking' : '';
+
+  return (
+    <div
+      className={'board theme-' + boardTheme + thinkingClass}
+      role="grid"
+      aria-label="Chess board"
+      onKeyDown={handleKeyDown}
+    >
+      {squares}
+    </div>
+  );
 }

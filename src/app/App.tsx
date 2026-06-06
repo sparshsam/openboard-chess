@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import Board from '../components/Board/Board';
 import MoveHistory from '../components/Game/MoveHistory';
 import StatusBar from '../components/Game/StatusBar';
@@ -61,8 +61,15 @@ export default function App() {
   const isNightmare =
     settings.gameMode === 'computer' && settings.difficulty === 'nightmare';
 
+  const pieceSetClass = 'piece-set-active-' + settings.pieceSet;
+  const boardThinkingClass = isComputerThinking ? ' board-computer-thinking' : '';
+
   return (
-    <div className={'app piece-set-active-' + settings.pieceSet}>
+    <div className={'app ' + pieceSetClass}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       <header className="app-header">
         <h1>Chess by Sparsh</h1>
         <button className="settings-toggle-btn" onClick={toggleSettings} aria-label="Open settings">
@@ -70,9 +77,9 @@ export default function App() {
         </button>
       </header>
 
-      <main className="app-main">
+      <main id="main-content" className="app-main">
         <div className="game-layout">
-          <div className="board-section">
+          <div className={'board-section' + boardThinkingClass}>
             <CapturedPieces
               whiteCaptured={captured.white}
               blackCaptured={captured.black}
@@ -84,6 +91,7 @@ export default function App() {
               onSquareClick={selectSquare}
               boardTheme={settings.boardTheme}
               pieceSet={settings.pieceSet}
+              isComputerThinking={isComputerThinking}
             />
             <StatusBar
               status={status}
