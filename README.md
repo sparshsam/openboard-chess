@@ -3,7 +3,7 @@
   <img src="assets/screenshots/chess-main.png" alt="Chess by Sparsh — Board" width="720" style="border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);" />
   <br /><br />
   <h1>Chess by Sparsh</h1>
-  <p><em>A local-first chess board with accurate rule validation and a calm, readable interface.</em></p>
+  **Maturity:** Production. v0.6.0 — polished, tested, deployed.<br><br><em>A local-first chess board with accurate rule validation and a calm, readable interface.</em></p>
   <p><strong>Play the computer or a friend. No accounts, no backend, no telemetry.</strong></p>
   <br />
   <div>
@@ -32,6 +32,7 @@
 </div>
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## What is Chess by Sparsh?
 
@@ -69,6 +70,7 @@ The product is designed around one idea: chess should be easy to start, locally 
 - Not a mobile app (responsive web only)
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Local Development
 
@@ -152,6 +154,7 @@ On WSL2 with Windows, make sure:
 ```
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Features
 
@@ -207,6 +210,7 @@ On WSL2 with Windows, make sure:
 > ⚠ **Nightmare difficulty** requires a modern browser with SharedArrayBuffer support. See [Browser Requirements](#browser-requirements) below.
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Architecture
 
@@ -272,6 +276,7 @@ view/hook ──> StockfishEngine.init() ──> dynamic import('stockfish.wasm'
                         └──> 'bestmove e2e4' (final move callback)
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Project Principles
 
@@ -282,6 +287,7 @@ view/hook ──> StockfishEngine.init() ──> dynamic import('stockfish.wasm'
 5. **Restrained claims** — this is a chess board, not a chess engine or rating system.
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Repository Structure
 
@@ -324,6 +330,7 @@ view/hook ──> StockfishEngine.init() ──> dynamic import('stockfish.wasm'
 ```
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Tech Stack
 
@@ -340,6 +347,7 @@ view/hook ──> StockfishEngine.init() ──> dynamic import('stockfish.wasm'
 | Deployment | Vercel |
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Board Themes
 
@@ -352,6 +360,7 @@ Choose from five board color themes in the Settings panel:
 - **Midnight** — Light #c8ccd0, Dark #2c3a50 (dark high-contrast)
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Piece Sets
 
@@ -363,6 +372,7 @@ Four piece rendering styles:
 - **Outlined** — Transparent pieces with visible outlines
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Sound Effects
 
@@ -377,6 +387,7 @@ Sounds are generated programmatically using the Web Audio API — no audio files
 Sound can be toggled on/off in the Settings panel.
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## PWA Support
 
@@ -390,6 +401,7 @@ Chess by Sparsh is a Progressive Web App:
 - **iOS support:** apple-mobile-web-app meta tags for Safari home screen experience
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Mobile Support
 
@@ -402,6 +414,7 @@ The app is fully responsive and works on mobile devices:
 - Board automatically sizes to `min(92vw, 400px)`
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Browser Requirements
 
@@ -431,6 +444,7 @@ For Vercel deployments, `vercel.json` handles this automatically. For local deve
 The app includes `isWasmThreadsSupported()` to check at runtime whether the browser supports Stockfish. If unsupported, a clear error message is shown in the UI.
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Deliberately Out of Scope
 
@@ -448,6 +462,7 @@ The following are intentionally deferred:
 No roadmap item should be treated as promised until it is implemented, tested, and released.
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## Roadmap
 
@@ -465,6 +480,7 @@ No roadmap item should be treated as promised until it is implemented, tested, a
 See [ROADMAP.md](ROADMAP.md) for the full versioned roadmap with principles and scope guidance.
 
 ---
+## Quick Links- [Live Demo](https://chess-by-sparsh.vercel.app)- [Architecture](ARCHITECTURE.md)- [Changelog](CHANGELOG.md)- [Roadmap](ROADMAP.md)- [Contributing](CONTRIBUTING.md)- [Security Policy](SECURITY.md)- [GitHub](https://github.com/sparshsam/chess-by-sparsh)---
 
 ## License
 
@@ -473,3 +489,7 @@ MIT — see [LICENSE](LICENSE).
 ## Maintainer
 
 Created by [Sparsh Sam](https://github.com/sparshsam).
+
+---
+
+*Last updated: June 2026*
