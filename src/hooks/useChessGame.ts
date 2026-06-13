@@ -3,7 +3,8 @@ import { Chess } from 'chess.js';
 import type { Square } from 'chess.js';
 import type { PromotionChoice, AppSettings, GameMode, StockfishStatus, MoveFeedback } from '../types';
 import type { Difficulty } from '../chess/difficulty';
-import { getComputerMove, getStockfishComputerMove, computeMoveFeedback } from '../chess/computer';
+import { DIFFICULTIES } from '../chess/difficulty';
+import { getComputerMove, computeMoveFeedback } from '../chess/computer';
 import { StockfishEngine } from '../chess/stockfish';
 import type { StockfishMove, StockfishEngineState } from '../chess/stockfish';
 import { saveGame, loadGame, clearGame } from '../lib/storage';
@@ -223,28 +224,28 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       const difficulty = settingsRef.current.difficulty;
 
       if (!engine?.isReady) {
-        // Fallback to custom engine
+        // Fallback to custom engine — no Stockfish callback to worry about
         const move = await getComputerMove(g, difficulty, null);
         g.move({ from: move.from, to: move.to, promotion: move.promotion });
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        updateState();
       } else {
-        const move = await getStockfishComputerMove(g, difficulty, engine);
-        if (move) {
-          g.move({ from: move.from, to: move.to, promotion: move.promotion });
-        } else {
-          // Stockfish returned nothing — fallback
-          const fallback = await getComputerMove(g, difficulty, null);
-          g.move({ from: fallback.from, to: fallback.to, promotion: fallback.promotion });
+        // Stockfish path: configure engine, then call search().
+        // The onBestMove callback (set during init) applies the result.
+        const config = DIFFICULTIES[difficulty];
+        if (config.stockfishSkillLevel !== undefined) {
+          engine.setSkillLevel(config.stockfishSkillLevel);
         }
+        const thinkTime = config.stockfishThinkTimeMs ?? 2000;
+        engine.setThinkTime(thinkTime);
+        engine.search(g.fen(), thinkTime);
       }
-
-      setSelectedSquare(null);
-      setLegalMoves([]);
-      updateState();
     } catch (err) {
       console.error('Computer move failed:', err);
-    } finally {
       setIsComputerThinking(false);
     }
+    // Note: setIsComputerThinking(false) is handled by the onBestMove callback
   }, [updateState]);
 
   // ── Schedule computer move (called after user plays) ──────────
