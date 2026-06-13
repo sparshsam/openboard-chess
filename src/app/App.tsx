@@ -5,7 +5,7 @@ import StatusBar from '../components/Game/StatusBar';
 import GameControls from '../components/GameControls/GameControls';
 import PromotionDialog from '../components/PromotionDialog/PromotionDialog';
 import SettingsPanel from '../components/Settings/SettingsPanel';
-import CapturedPieces from '../components/CapturedPieces/CapturedPieces';
+import PlayerPanel from '../components/PlayerPanel/PlayerPanel';
 import { useChessGame } from '../hooks/useChessGame';
 import { useSettings } from '../hooks/useSettings';
 import { isDebugEnabled, getDebugInfo, type EngineDebugInfo } from '../chess/engineDebug';
@@ -95,9 +95,12 @@ export default function App() {
       <main id="main-content" className="app-main">
         <div className="game-layout">
           <div className={'board-section' + boardThinkingClass}>
-            <CapturedPieces
+            <PlayerPanel
               whiteCaptured={captured.white}
               blackCaptured={captured.black}
+              gameMode={settings.gameMode}
+              turn={game.turn() as 'w' | 'b'}
+              status={status}
             />
             <Board
               game={game}
