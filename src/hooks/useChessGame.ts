@@ -89,6 +89,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const stockfishEngineRef = useRef<StockfishEngine | null>(null);
   const stockfishStateRef = useRef<StockfishEngineState>('idle');
   const liveFenRef = useRef<string>(game.fen());
+  const computerMoveActiveRef = useRef(false);
 
   // Keep track of FEN before each human move (for feedback computation)
   const preMoveFenRef = useRef<string | null>(null);
@@ -161,6 +162,14 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       },
       onBestMove: (move: StockfishMove) => {
         const g = gameRef.current;
+        // Ignore stale Stockfish results (e.g. from initial load analysis)
+        if (!computerMoveActiveRef.current) {
+          setStockfishProgress(null);
+          setIsComputerThinking(false);
+          return;
+        }
+        computerMoveActiveRef.current = false;
+
         if (g.turn() !== 'b' || g.isGameOver()) {
           setStockfishProgress(null);
           return;
@@ -186,8 +195,9 @@ export function useChessGame({ settings }: UseChessGameOptions) {
               else playMoveSound();
             }
           }
-        } catch (err) {
-          console.error('Failed to apply Stockfish move:', err);
+        } catch {
+          // Stale or invalid Stockfish result — log quietly, don't crash
+          console.warn('Stockfish returned unusable move (stale result)');
         } finally {
           setIsComputerThinking(false);
         }
@@ -224,6 +234,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   /** Async-based computer move using Stockfish + fallback */
   const scheduleComputerMoveViaStockfish = useCallback(async () => {
     setIsComputerThinking(true);
+    computerMoveActiveRef.current = true;
 
     try {
       const g = gameRef.current;
@@ -237,6 +248,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
         setSelectedSquare(null);
         setLegalMoves([]);
         updateState();
+        setIsComputerThinking(false);
+        computerMoveActiveRef.current = false;
       } else {
         // Stockfish path: configure engine, then call search().
         // The onBestMove callback (set during init) applies the result.
@@ -251,6 +264,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     } catch (err) {
       console.error('Computer move failed:', err);
       setIsComputerThinking(false);
+      computerMoveActiveRef.current = false;
     }
     // Note: setIsComputerThinking(false) is handled by the onBestMove callback
   }, [updateState]);
@@ -310,6 +324,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     if (stockfishEngineRef.current) {
       stockfishEngineRef.current.stop();
     }
+
+    computerMoveActiveRef.current = false;
 
     game.reset();
     setSelectedSquare(null);
