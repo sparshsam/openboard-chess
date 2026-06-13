@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import MoveHistory from '../Game/MoveHistory';
 import ConfirmDialog from '../ConfirmDialog/ConfirmDialog';
-import type { StockfishStatus } from '../../types';
+import type { StockfishStatus, MoveFeedback } from '../../types';
 import './GamePanel.css';
 
 interface GamePanelProps {
@@ -12,12 +12,12 @@ interface GamePanelProps {
   stockfishStatus?: StockfishStatus;
   stockfishError?: string | null;
   stockfishProgress?: { depth: number; score: number } | null;
-  isNightmare?: boolean;
 
   /* Move History */
   history: string[];
   reviewMode: boolean;
   reviewIndex: number;
+  moveFeedback: Map<number, MoveFeedback>;
   onGoToMove: (index: number) => void;
   onEnterReview: () => void;
   onExitReview: () => void;
@@ -41,10 +41,10 @@ export default function GamePanel({
   stockfishStatus,
   stockfishError,
   stockfishProgress,
-  isNightmare,
   history,
   reviewMode,
   reviewIndex,
+  moveFeedback,
   onGoToMove,
   onEnterReview,
   onExitReview,
@@ -62,14 +62,15 @@ export default function GamePanel({
   const modeLabel = gameMode === 'computer' ? 'Computer' : 'Local 2P';
   const getThinkingLabel = () => {
     if (!isComputerThinking) return '';
-    if (isNightmare && stockfishStatus === 'loading') return ' (Loading…)';
-    if (isNightmare && stockfishProgress) {
+    const isSfReady = stockfishStatus === 'ready' || stockfishStatus === 'loading';
+    if (isSfReady && stockfishStatus === 'loading') return ' (Loading…)';
+    if (isSfReady && stockfishProgress) {
       const s = stockfishProgress.score >= 0
         ? `+${(stockfishProgress.score / 100).toFixed(2)}`
         : `${(stockfishProgress.score / 100).toFixed(2)}`;
       return ` (d${stockfishProgress.depth} | ${s})`;
     }
-    if (isNightmare && stockfishStatus === 'ready') return ' (thinking)';
+    if (stockfishStatus === 'ready') return ' (thinking)';
     if (stockfishStatus === 'error') return ' (engine error)';
     return '';
   };
@@ -99,6 +100,7 @@ export default function GamePanel({
             history={history}
             reviewMode={reviewMode}
             reviewIndex={reviewIndex}
+            moveFeedback={moveFeedback}
             onGoToMove={onGoToMove}
             onEnterReview={onEnterReview}
             onExitReview={onExitReview}
@@ -106,12 +108,33 @@ export default function GamePanel({
         </div>
       </div>
 
-      {/* ── 2. Analysis (placeholder) ──────────────────────── */}
+      {/* ── 2. Analysis ────────────────────────────────────── */}
       <div className="panel-section panel-analysis">
         <h3 className="panel-section-title">Analysis</h3>
-        <p className="panel-analysis-placeholder">
-          Engine analysis coming soon
-        </p>
+        {moveFeedback.size > 0 && (
+          <div className="analysis-feedback-list">
+            {Array.from(moveFeedback.values())
+              .filter((f) => f.moveIndex >= 0)
+              .slice(-10)
+              .reverse()
+              .map((f) => (
+                <div key={f.moveIndex} className={`analysis-feedback-item tag-${f.tag}`}>
+                  <span className="feedback-move-num">#{f.moveIndex + 1}</span>
+                  <span className="feedback-tag">{f.tag}</span>
+                  {f.centipawnLoss > 0 && (
+                    <span className="feedback-cl">
+                      {'−' + f.centipawnLoss.toFixed(1)}cp
+                    </span>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+        {moveFeedback.size === 0 && (
+          <p className="panel-analysis-placeholder">
+            Move quality analysis after your moves
+          </p>
+        )}
       </div>
 
       {/* ── 3. Game Actions ────────────────────────────────── */}

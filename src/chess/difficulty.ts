@@ -18,6 +18,10 @@ export interface DifficultyConfig {
   iterativeDeepening: boolean;
   /** Whether this difficulty uses external engine integration (e.g. Stockfish WASM) */
   usesStockfish?: boolean;
+  /** Stockfish Skill Level (0-20). Only used when usesStockfish is true. */
+  stockfishSkillLevel?: number;
+  /** Stockfish think time in ms. Only used when usesStockfish is true. */
+  stockfishThinkTimeMs?: number;
   /** Description for the UI */
   description: string;
   /** Whether this difficulty is hidden from the UI */
@@ -36,11 +40,14 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     label: 'Beginner',
     rating: 800,
     depth: 0,
-    randomBlunders: true,
+    randomBlunders: false,
     quiescence: false,
     useTranspositionTable: false,
     iterativeDeepening: false,
-    description: 'Picks random legal moves with slight center preference. Occasionally blunders.',
+    usesStockfish: true,
+    stockfishSkillLevel: 1,
+    stockfishThinkTimeMs: 150,
+    description: 'Stockfish at Skill Level 1 with short think time. Very weak but plays real chess without random blunders.',
   },
   casual: {
     label: 'Casual',
@@ -50,7 +57,10 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     quiescence: false,
     useTranspositionTable: false,
     iterativeDeepening: false,
-    description: '1-ply search with piece-square evaluation, king safety, mobility, and opening book guidance.',
+    usesStockfish: true,
+    stockfishSkillLevel: 5,
+    stockfishThinkTimeMs: 400,
+    description: 'Stockfish at Skill Level 5 with moderate think time. Makes reasonable moves but misses deeper tactics.',
   },
   club: {
     label: 'Club',
@@ -60,7 +70,10 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     quiescence: true,
     useTranspositionTable: false,
     iterativeDeepening: false,
-    description: '3-ply alpha-beta with quiescence, MVV-LVA ordering. Full positional evaluation with mobility, pawn structure, king safety. Opening book.',
+    usesStockfish: true,
+    stockfishSkillLevel: 10,
+    stockfishThinkTimeMs: 1000,
+    description: 'Stockfish at Skill Level 10. Solid club-level play with good tactical awareness.',
   },
   expert: {
     label: 'Expert',
@@ -70,7 +83,10 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     quiescence: true,
     useTranspositionTable: true,
     iterativeDeepening: true,
-    description: '5-ply iterative deepening with transposition cache and quiescence. Full evaluation. Tactical stability.',
+    usesStockfish: true,
+    stockfishSkillLevel: 16,
+    stockfishThinkTimeMs: 2000,
+    description: 'Stockfish at Skill Level 16 with longer think time. Strong positional and tactical play.',
   },
   nightmare: {
     label: 'Nightmare',
@@ -81,8 +97,10 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     useTranspositionTable: false,
     iterativeDeepening: false,
     usesStockfish: true,
+    stockfishSkillLevel: 20,
+    stockfishThinkTimeMs: 3000,
     description:
-      'Powered by Stockfish WASM (introduced in v0.5.0). Extremely strong. Requires SharedArrayBuffer support in your browser. ~150KB gzipped, loaded on-demand when this difficulty is selected.',
+      'Stockfish at full strength (Skill Level 20). Extremely strong. Requires SharedArrayBuffer support in your browser.',
   },
 };
 

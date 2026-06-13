@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
+import type { MoveFeedback } from '../../types';
 
 interface MoveHistoryProps {
   history: string[];
   reviewMode: boolean;
   reviewIndex: number;
+  moveFeedback: Map<number, MoveFeedback>;
   onGoToMove: (index: number) => void;
   onEnterReview: () => void;
   onExitReview: () => void;
@@ -13,6 +15,7 @@ export default function MoveHistory({
   history,
   reviewMode,
   reviewIndex,
+  moveFeedback,
   onGoToMove,
   onEnterReview,
   onExitReview,
@@ -82,6 +85,7 @@ export default function MoveHistory({
               }}
             >
               {row.white}
+              <MoveFeedbackTag feedback={moveFeedback.get(row.whiteIndex)} />
             </span>
             {row.black !== undefined && (
               <span
@@ -96,6 +100,9 @@ export default function MoveHistory({
                 }}
               >
                 {row.black}
+                {row.blackIndex !== undefined && (
+                  <MoveFeedbackTag feedback={moveFeedback.get(row.blackIndex)} />
+                )}
               </span>
             )}
           </div>
@@ -126,5 +133,32 @@ export default function MoveHistory({
         )}
       </div>
     </div>
+  );
+}
+
+/** Inline feedback tag rendered next to a move */
+function MoveFeedbackTag({ feedback }: { feedback: MoveFeedback | undefined }) {
+  if (!feedback) return null;
+
+  const tagLabels: Record<string, { label: string; title: string }> = {
+    book: { label: '★', title: 'Book move' },
+    perfect: { label: '!!', title: 'Perfect move (0–10cp loss)' },
+    excellent: { label: '!', title: 'Excellent move (11–35cp loss)' },
+    good: { label: '?!', title: 'Good move (36–80cp loss)' },
+    inaccuracy: { label: '?!', title: `Inaccuracy (81–150cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
+    mistake: { label: '?', title: `Mistake (151–300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
+    blunder: { label: '??', title: `Blunder (>300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
+  };
+
+  const info = tagLabels[feedback.tag];
+  if (!info) return null;
+
+  return (
+    <span
+      className={`move-feedback-tag move-feedback-${feedback.tag}`}
+      title={info.title}
+    >
+      {info.label}
+    </span>
   );
 }

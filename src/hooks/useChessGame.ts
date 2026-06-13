@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
 import type { Square } from 'chess.js';
-import type { PromotionChoice, AppSettings, GameMode, StockfishStatus } from '../types';
+import type { PromotionChoice, AppSettings, GameMode, StockfishStatus, MoveFeedback } from '../types';
 import type { Difficulty } from '../chess/difficulty';
-import { getComputerMove, COMPUTER_DELAY_MS } from '../chess/computer';
+import { getComputerMove, getStockfishComputerMove, computeMoveFeedback } from '../chess/computer';
 import { StockfishEngine } from '../chess/stockfish';
 import type { StockfishMove, StockfishEngineState } from '../chess/stockfish';
 import { saveGame, loadGame, clearGame } from '../lib/storage';
@@ -30,9 +30,6 @@ const PIECE_VALUE: Record<string, number> = {
   k: 0,
 };
 
-/** How long Stockfish should think per move (ms) */
-const STOCKFISH_THINK_TIME_MS = 2500;
-
 function rebuildMoveFens(history: string[]): string[] {
   const fens: string[] = [new Chess().fen()];
   for (let i = 0; i < history.length; i++) {
@@ -44,6 +41,11 @@ function rebuildMoveFens(history: string[]): string[] {
     fens.push(g2.fen());
   }
   return fens;
+}
+
+/** Rebuild the FEN list from scratch using the full history */
+function rebuildFensFromHistory(history: string[]): string[] {
+  return rebuildMoveFens(history);
 }
 
 export function useChessGame({ settings }: UseChessGameOptions) {
@@ -73,6 +75,9 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(-1);
 
+  // Move feedback analysis state
+  const [moveFeedback, setMoveFeedback] = useState<Map<number, MoveFeedback>>(new Map());
+
   const prevModeRef = useRef<GameMode>(settings.gameMode);
   const prevDifficultyRef = useRef<Difficulty>(settings.difficulty);
   const settingsRef = useRef(settings);
@@ -80,6 +85,9 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const computerMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stockfishEngineRef = useRef<StockfishEngine | null>(null);
   const stockfishStateRef = useRef<StockfishEngineState>('idle');
+
+  // Keep track of FEN before each human move (for feedback computation)
+  const preMoveFenRef = useRef<string | null>(null);
 
   // Keep refs in sync via effect (not during render)
   useEffect(() => {
@@ -93,7 +101,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const updateState = useCallback(() => {
     const newFen = game.fen();
     const newHistory = game.history();
-    const newMoveFens = rebuildMoveFens(newHistory);
+    const newMoveFens = rebuildFensFromHistory(newHistory);
     setFen(newFen);
     setHistory(newHistory);
     setMoveFens(newMoveFens);
@@ -123,31 +131,123 @@ export function useChessGame({ settings }: UseChessGameOptions) {
 
   // ── Stockfish integration ─────────────────────────────────────
 
+  /** Start Stockfish engine (called when computer mode is activated) */
+  const initStockfish = useCallback(() => {
+    if (stockfishStatus !== 'unloaded') return;
 
+    setStockfishStatus('loading');
+    setStockfishError(null);
+    setStockfishProgress(null);
 
-  // Stockfish computer move
-  const scheduleStockfishMove = useCallback(() => {
-    setIsComputerThinking(true);
+    const engine = new StockfishEngine();
+    stockfishEngineRef.current = engine;
 
-    // Short delay for natural feel
-    setTimeout(() => {
-      const engine = stockfishEngineRef.current;
-      const g = gameRef.current;
-      if (
-        !engine ||
-        engine.currentState !== 'ready' ||
-        g.turn() !== 'b' ||
-        g.isGameOver()
-      ) {
+    engine.init({
+      onStateChange: (state: StockfishEngineState) => {
+        stockfishStateRef.current = state;
+        if (state === 'ready') {
+          setStockfishStatus('ready');
+        } else if (state === 'error') {
+          setStockfishStatus('error');
+        }
+      },
+      onBestMove: (move: StockfishMove) => {
+        const g = gameRef.current;
+        if (g.turn() !== 'b' || g.isGameOver()) {
+          setStockfishProgress(null);
+          return;
+        }
+
+        try {
+          g.move({
+            from: move.from as Square,
+            to: move.to as Square,
+            promotion: move.promotion as 'q' | 'r' | 'b' | 'n' | undefined,
+          });
+          setSelectedSquare(null);
+          setLegalMoves([]);
+          setStockfishProgress(null);
+          updateState();
+
+          const s = settingsRef.current;
+          if (s.soundEnabled) {
+            const hist = g.history({ verbose: true });
+            if (hist.length > 0) {
+              const last = hist[hist.length - 1];
+              if (last.captured) playCaptureSound();
+              else playMoveSound();
+            }
+          }
+        } catch (err) {
+          console.error('Failed to apply Stockfish move:', err);
+        } finally {
+          setIsComputerThinking(false);
+        }
+      },
+      onError: (error: string) => {
+        setStockfishError(error);
+        setStockfishStatus('error');
         setIsComputerThinking(false);
-        return;
-      }
+      },
+      onProgress: (info: { depth: number; score: number }) => {
+        setStockfishProgress({ depth: info.depth, score: info.score });
+      },
+    }).catch((err: unknown) => {
+      setStockfishStatus('error');
+      setStockfishError(
+        `Failed to initialize Stockfish: ${err instanceof Error ? err.message : String(err)}`
+      );
+      setIsComputerThinking(false);
+    });
+  }, [stockfishStatus, updateState]);
 
-      engine.search(g.fen(), STOCKFISH_THINK_TIME_MS);
-    }, 300 + Math.random() * 400);
+  /** Stop and cleanup Stockfish */
+  const terminateStockfish = useCallback(() => {
+    if (stockfishEngineRef.current) {
+      stockfishEngineRef.current.terminate();
+      stockfishEngineRef.current = null;
+    }
+    stockfishStateRef.current = 'idle';
+    setStockfishStatus('unloaded');
+    setStockfishError(null);
+    setStockfishProgress(null);
   }, []);
 
-  // ── Schedule computer move (called after user plays) ───────────
+  /** Async-based computer move using Stockfish + fallback */
+  const scheduleComputerMoveViaStockfish = useCallback(async () => {
+    setIsComputerThinking(true);
+
+    try {
+      const g = gameRef.current;
+      const engine = stockfishEngineRef.current;
+      const difficulty = settingsRef.current.difficulty;
+
+      if (!engine?.isReady) {
+        // Fallback to custom engine
+        const move = await getComputerMove(g, difficulty, null);
+        g.move({ from: move.from, to: move.to, promotion: move.promotion });
+      } else {
+        const move = await getStockfishComputerMove(g, difficulty, engine);
+        if (move) {
+          g.move({ from: move.from, to: move.to, promotion: move.promotion });
+        } else {
+          // Stockfish returned nothing — fallback
+          const fallback = await getComputerMove(g, difficulty, null);
+          g.move({ from: fallback.from, to: fallback.to, promotion: fallback.promotion });
+        }
+      }
+
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      updateState();
+    } catch (err) {
+      console.error('Computer move failed:', err);
+    } finally {
+      setIsComputerThinking(false);
+    }
+  }, [updateState]);
+
+  // ── Schedule computer move (called after user plays) ──────────
   const scheduleComputerMove = useCallback(() => {
     if (computerMoveTimeoutRef.current) {
       clearTimeout(computerMoveTimeoutRef.current);
@@ -155,50 +255,43 @@ export function useChessGame({ settings }: UseChessGameOptions) {
 
     setIsComputerThinking(true);
 
-    computerMoveTimeoutRef.current = setTimeout(async () => {
-      const g = gameRef.current;
-      const s = settingsRef.current;
-      if (s.gameMode !== 'computer' || g.turn() !== 'b' || g.isGameOver()) {
-        setIsComputerThinking(false);
-        return;
+    const thinkTime = 300 + Math.random() * 400;
+
+    computerMoveTimeoutRef.current = setTimeout(() => {
+      scheduleComputerMoveViaStockfish();
+      computerMoveTimeoutRef.current = null;
+    }, thinkTime);
+  }, [scheduleComputerMoveViaStockfish]);
+
+  /* Stockfish move scheduling is handled by scheduleComputerMoveViaStockfish for all difficulties */
+
+  // ── Move Feedback Computation ─────────────────────────────────
+
+  const computeFeedback = useCallback(
+    async (moveIndex: number, fenBefore: string, fenAfter: string, playerColor: 'w' | 'b') => {
+      const engine = stockfishEngineRef.current;
+      if (!engine?.isReady) return;
+
+      const feedback = await computeMoveFeedback(fenBefore, fenAfter, playerColor, engine, false);
+      if (feedback) {
+        setMoveFeedback((prev) => {
+          const next = new Map(prev);
+          next.set(moveIndex, {
+            moveIndex,
+            tag: feedback.tag,
+            centipawnLoss: feedback.centipawnLoss,
+            evalBefore: Math.round(feedback.evalBefore / 100),
+            evalAfter: Math.round(feedback.evalAfter / 100),
+            isBook: false,
+          });
+          return next;
+        });
       }
+    },
+    []
+  );
 
-      try {
-        const move = await getComputerMove(g, s.difficulty);
-        g.move({ from: move.from, to: move.to, promotion: move.promotion });
-        setSelectedSquare(null);
-        setLegalMoves([]);
-
-        const newFen = g.fen();
-        const newHistory = g.history();
-        const newMoveFens = rebuildMoveFens(newHistory);
-        setFen(newFen);
-        setHistory(newHistory);
-        setMoveFens(newMoveFens);
-        saveGame(newFen, newHistory);
-
-        const turn = g.turn() === 'w' ? 'White' : 'Black';
-        let msg = `${turn} to move`;
-        if (g.isCheckmate()) {
-          msg = `Checkmate! ${turn === 'White' ? 'Black' : 'White'} wins!`;
-        } else if (g.isStalemate()) {
-          msg = 'Stalemate! The game is a draw.';
-        } else if (g.isDraw()) {
-          msg = 'Draw!';
-        } else if (g.isCheck()) {
-          msg = `${turn} is in check`;
-        }
-        setStatus(msg);
-      } catch (err) {
-        console.error('Computer move failed:', err);
-      } finally {
-        setIsComputerThinking(false);
-        computerMoveTimeoutRef.current = null;
-      }
-    }, COMPUTER_DELAY_MS + Math.random() * 300);
-  }, []);
-
-  // ── New game ───────────────────────────────────────────────────
+  // ── New game ──────────────────────────────────────────────────
   const handleNewGame = useCallback(() => {
     if (computerMoveTimeoutRef.current) {
       clearTimeout(computerMoveTimeoutRef.current);
@@ -219,16 +312,19 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     setReviewMode(false);
     setReviewIndex(-1);
     setStockfishProgress(null);
+    setMoveFeedback(new Map());
     clearGame();
     updateState();
   }, [game, updateState]);
 
-  // ── Helper: after a user move, let computer respond ────────────
+  // ── Helper: after a user move, let computer respond ───────────
   const afterUserMove = useCallback(
-    (wasPromotion: boolean = false) => {
+    (wasPromotion: boolean = false, fenBefore?: string) => {
       const s = settingsRef.current;
+      const g = gameRef.current;
+
+      // Sound effect
       if (s.soundEnabled) {
-        const g = gameRef.current;
         if (g.isCheckmate()) {
           playCheckmateSound();
         } else if (g.isCheck()) {
@@ -249,17 +345,26 @@ export function useChessGame({ settings }: UseChessGameOptions) {
           }
         }
       }
-      const isComputerTurn =
-        settingsRef.current.gameMode === 'computer' && game.turn() === 'b' && !game.isGameOver();
-      if (isComputerTurn) {
-        if (settingsRef.current.difficulty === 'nightmare') {
-          scheduleStockfishMove();
-        } else {
-          scheduleComputerMove();
+
+      // Compute move feedback if Stockfish is available
+      const engine = stockfishEngineRef.current;
+      if (engine?.isReady && fenBefore) {
+        const hist = g.history({ verbose: true });
+        if (hist.length > 0) {
+          const lastMove = hist[hist.length - 1];
+          const moveIndex = hist.length - 1;
+          computeFeedback(moveIndex, fenBefore, g.fen(), lastMove.color as 'w' | 'b');
         }
       }
+
+      // Schedule computer response
+      const isComputerTurn =
+        settingsRef.current.gameMode === 'computer' && g.turn() === 'b' && !g.isGameOver();
+      if (isComputerTurn) {
+        scheduleComputerMove();
+      }
     },
-    [game, scheduleComputerMove, scheduleStockfishMove]
+    [game, scheduleComputerMove, computeFeedback]
   );
 
   // ── Move Review ─────────────────────────────────────────────
@@ -320,11 +425,14 @@ export function useChessGame({ settings }: UseChessGameOptions) {
             return;
           }
 
+          // Save FEN before the move for feedback computation
+          preMoveFenRef.current = game.fen();
+
           game.move({ from: selectedSquare, to: square });
           setSelectedSquare(null);
           setLegalMoves([]);
           updateState();
-          afterUserMove(false);
+          afterUserMove(false, preMoveFenRef.current);
           return;
         }
 
@@ -345,12 +453,13 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const promote = useCallback(
     (piece: 'q' | 'r' | 'b' | 'n') => {
       if (!pendingPromotion) return;
+      preMoveFenRef.current = game.fen();
       game.move({ from: pendingPromotion.from, to: pendingPromotion.to, promotion: piece });
       setPendingPromotion(null);
       setSelectedSquare(null);
       setLegalMoves([]);
       updateState();
-      afterUserMove(true);
+      afterUserMove(true, preMoveFenRef.current);
     },
     [game, pendingPromotion, updateState, afterUserMove]
   );
@@ -377,6 +486,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
         setGameResult(null);
         setReviewMode(false);
         setReviewIndex(-1);
+        setMoveFeedback(new Map());
         updateState();
         afterUserMove(false);
         return true;
@@ -396,12 +506,20 @@ export function useChessGame({ settings }: UseChessGameOptions) {
 
     // In computer mode, undo 2 moves if possible (player + computer)
     const undoCount = settingsRef.current.gameMode === 'computer' ? Math.min(2, history.length) : 1;
-    const newFens = [...moveFens];
+
+    // Remove associated move feedback
+    setMoveFeedback((prev) => {
+      const next = new Map(prev);
+      for (let i = 0; i < undoCount; i++) {
+        next.delete(history.length - 1 - i);
+      }
+      return next;
+    });
+
     for (let i = 0; i < undoCount; i++) {
       game.undo();
-      newFens.pop();
     }
-    setMoveFens(newFens);
+    setMoveFens(rebuildFensFromHistory(game.history()));
     setReviewMode(false);
     setReviewIndex(-1);
     updateState();
@@ -461,7 +579,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
         /* eslint-disable react-hooks/set-state-in-effect */
         setFen(saved.fen);
         setHistory(saved.history);
-        const fens = rebuildMoveFens(saved.history);
+        const fens = rebuildFensFromHistory(saved.history);
         setMoveFens(fens);
         updateState();
         /* eslint-enable react-hooks/set-state-in-effect */
@@ -472,93 +590,21 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Initialize or terminate Stockfish when difficulty changes
+  // Initialize or terminate Stockfish when game mode or difficulty changes
   useEffect(() => {
-    const isNightmare =
-      settings.gameMode === 'computer' && settings.difficulty === 'nightmare';
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const isComputerMode = settings.gameMode === 'computer';
 
-    if (isNightmare && stockfishStatus === 'unloaded') {
-      // Start loading Stockfish — set state directly outside async init
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setStockfishStatus('loading');
-      setStockfishError(null);
-      setStockfishProgress(null);
-
-      const engine = new StockfishEngine();
-      stockfishEngineRef.current = engine;
-
-      engine.init({
-        onStateChange: (state: StockfishEngineState) => {
-          stockfishStateRef.current = state;
-          if (state === 'ready') {
-            setStockfishStatus('ready');
-          } else if (state === 'error') {
-            setStockfishStatus('error');
-          }
-        },
-        onBestMove: (move: StockfishMove) => {
-          const g = gameRef.current;
-          if (g.turn() !== 'b' || g.isGameOver()) {
-            setStockfishProgress(null);
-            return;
-          }
-
-          try {
-            g.move({
-              from: move.from as Square,
-              to: move.to as Square,
-              promotion: move.promotion as 'q' | 'r' | 'b' | 'n' | undefined,
-            });
-            setSelectedSquare(null);
-            setLegalMoves([]);
-            setStockfishProgress(null);
-            updateState();
-
-            const s = settingsRef.current;
-            if (s.soundEnabled) {
-              const hist = g.history({ verbose: true });
-              if (hist.length > 0) {
-                const last = hist[hist.length - 1];
-                if (last.captured) playCaptureSound();
-                else playMoveSound();
-              }
-            }
-          } catch (err) {
-            console.error('Failed to apply Stockfish move:', err);
-          } finally {
-            setIsComputerThinking(false);
-          }
-        },
-        onError: (error: string) => {
-          setStockfishError(error);
-          setStockfishStatus('error');
-          setIsComputerThinking(false);
-        },
-        onProgress: (info: { depth: number; score: number }) => {
-          setStockfishProgress({ depth: info.depth, score: info.score });
-        },
-      }).catch((err: unknown) => {
-        setStockfishStatus('error');
-        setStockfishError(
-          `Failed to initialize Stockfish: ${err instanceof Error ? err.message : String(err)}`
-        );
-        setIsComputerThinking(false);
-      });
-      /* eslint-enable react-hooks/set-state-in-effect */
+    if (isComputerMode && stockfishStatus === 'unloaded') {
+      initStockfish();
     }
 
-    if (!isNightmare && stockfishStatus !== 'unloaded') {
-      if (stockfishEngineRef.current) {
-        stockfishEngineRef.current.terminate();
-        stockfishEngineRef.current = null;
-      }
-      stockfishStateRef.current = 'idle';
-      setStockfishStatus('unloaded');
-      setStockfishError(null);
-      setStockfishProgress(null);
+    if (!isComputerMode && stockfishStatus !== 'unloaded') {
+      terminateStockfish();
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.gameMode, settings.difficulty, stockfishStatus]);
+  }, [settings.gameMode, stockfishStatus]);
 
   // Reset board when game mode or difficulty changes
   useEffect(() => {
@@ -601,6 +647,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     stockfishStatus,
     stockfishError,
     stockfishProgress,
+    moveFeedback,
     selectSquare,
     promote,
     cancelPromotion,

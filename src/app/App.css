@@ -659,6 +659,116 @@
 }
 
 /* ============================================================
+   Move Feedback Tags
+   ============================================================ */
+.move-feedback-tag {
+  margin-left: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.move-feedback-book {
+  color: #2e86c1;
+}
+
+.move-feedback-perfect {
+  color: #27ae60;
+}
+
+.move-feedback-excellent {
+  color: #2ecc71;
+}
+
+.move-feedback-good {
+  color: #f39c12;
+}
+
+.move-feedback-inaccuracy {
+  color: #e67e22;
+}
+
+.move-feedback-mistake {
+  color: #e74c3c;
+}
+
+.move-feedback-blunder {
+  color: #c0392b;
+  font-weight: 900;
+}
+
+/* ============================================================
+   Analysis Section — Move Feedback List
+   ============================================================ */
+.analysis-feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 0.78rem;
+}
+
+.analysis-feedback-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
+}
+
+.feedback-move-num {
+  color: var(--text-muted);
+  font-weight: 600;
+  min-width: 2em;
+  text-align: right;
+}
+
+.feedback-tag {
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+}
+
+.feedback-cl {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Tag colors for analysis list */
+.tag-book .feedback-tag {
+  color: white;
+  background: #2e86c1;
+}
+.tag-perfect .feedback-tag {
+  color: white;
+  background: #27ae60;
+}
+.tag-excellent .feedback-tag {
+  color: white;
+  background: #2ecc71;
+}
+.tag-good .feedback-tag {
+  color: white;
+  background: #f39c12;
+}
+.tag-inaccuracy .feedback-tag {
+  color: white;
+  background: #e67e22;
+}
+.tag-mistake .feedback-tag {
+  color: white;
+  background: #e74c3c;
+}
+.tag-blunder .feedback-tag {
+  color: white;
+  background: #c0392b;
+}
+
+/* ============================================================
    Buttons
    ============================================================ */
 .btn {
