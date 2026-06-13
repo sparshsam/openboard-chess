@@ -103,6 +103,7 @@ export default function App() {
               selectedSquare={selectedSquare}
               legalMoves={legalMoves}
               onSquareClick={selectSquare}
+              boardOrientation={settings.boardOrientation}
               boardTheme={settings.boardTheme}
               pieceSet={settings.pieceSet}
               isComputerThinking={isComputerThinking}
