@@ -122,7 +122,14 @@ export default function GamePanel({
           {getThinkingLabel()}
           {isComputerThinking && <span className="thinking-dots" />}
         </span>
-        <span className="panel-status-text">{status}</span>
+        {!isComputerThinking && (
+          <span className="panel-status-text">{status}</span>
+        )}
+        {isComputerThinking && (
+          <span className="panel-status-text panel-status-thinking">
+            {difficulty ? DIFFICULTIES[difficulty].label : 'Bot'} thinking…
+          </span>
+        )}
         {stockfishStatus === 'error' && stockfishError && (
           <span className="panel-engine-error" title={stockfishError}>
             ⚠ Engine error
@@ -168,11 +175,6 @@ export default function GamePanel({
                   <span className="feedback-message">
                     {getFeedbackMessage(f.tag, f.centipawnLoss)}
                   </span>
-                  {f.centipawnLoss > 0 && (
-                    <span className="feedback-cl">
-                      {'−' + f.centipawnLoss.toFixed(1)}cp
-                    </span>
-                  )}
                 </div>
               ))}
           </div>

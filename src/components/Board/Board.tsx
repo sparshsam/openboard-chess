@@ -1,4 +1,6 @@
-import type { Chess, Square as ChessSquare, Color } from 'chess.js';
+import { useMemo } from 'react';
+import { Chess } from 'chess.js';
+import type { Square as ChessSquare, Color } from 'chess.js';
 import Square from './Square';
 import type { PieceInfo } from './Square';
 import type { BoardOrientation, BoardTheme, PieceSet } from '../../types';
@@ -17,6 +19,8 @@ interface BoardProps {
   isComputerThinking?: boolean;
   lastMove?: { from: string; to: string } | null;
   kingInCheck?: { square: string; color: 'w' | 'b' } | null;
+  /** When set, Board renders from this FEN instead of the live game */
+  displayFen?: string | null;
 }
 
 export default function Board({
@@ -30,8 +34,22 @@ export default function Board({
   isComputerThinking = false,
   lastMove = null,
   kingInCheck = null,
+  displayFen = null,
 }: BoardProps) {
-  const currentTurn: Color = game.turn();
+  // When displayFen is provided (review mode), use a separate Chess instance
+  // to render the historical position. Never mutate the live game.
+  const source = useMemo(() => {
+    if (!displayFen) return game;
+    const g = new Chess();
+    try {
+      g.load(displayFen);
+      return g;
+    } catch {
+      return game;
+    }
+  }, [displayFen, game]);
+
+  const currentTurn: Color = source.turn();
   const flipped = boardOrientation === 'flip-turn' && currentTurn === 'b';
 
   // Display ranks: when flipped, reverse so Black's rank 8 is at bottom
@@ -47,7 +65,7 @@ export default function Board({
     FILES.forEach((file, fi) => {
       const square = (file + rank) as ChessSquare;
       const isLight = (ri + fi) % 2 === 0;
-      const piece = game.get(square) as PieceInfo | null;
+      const piece = source.get(square) as PieceInfo | null;
       const isSelected = selectedSquare === square;
       const isLegalMove = legalMoves.includes(square);
       const isLastMove = lastMove !== null && (square === lastMove.from || square === lastMove.to);

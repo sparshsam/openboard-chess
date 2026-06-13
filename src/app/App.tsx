@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { Chess } from 'chess.js';
 import Board from '../components/Board/Board';
 import GamePanel from '../components/GamePanel/GamePanel';
 import PromotionDialog from '../components/PromotionDialog/PromotionDialog';
@@ -46,6 +47,7 @@ export default function App() {
     enterReviewMode,
     exitReviewMode,
     goToMove,
+    displayFen,
     stockfishStatus,
     stockfishError,
     stockfishProgress,
@@ -76,6 +78,14 @@ export default function App() {
   const canUndo = history.length > 0;
   const canResign = !gameResult && !game.isGameOver() && history.length > 0;
 
+  // ── Display game for review mode (never mutates live game) ──
+  const displayGame = useMemo(() => {
+    if (!displayFen) return null;
+    const g = new Chess();
+    try { g.load(displayFen); } catch { return null; }
+    return g;
+  }, [displayFen]);
+
   // ── Last move & check highlighting ──
   const lastMove = useMemo(() => {
     if (reviewMode && reviewIndex >= 0 && reviewIndex < history.length) {
@@ -90,8 +100,8 @@ export default function App() {
     return { from: last.from, to: last.to };
   }, [game, history, reviewMode, reviewIndex]);
 
-  function findKingSquare(color: 'w' | 'b'): string | null {
-    const board = game.board();
+  function findKingSquare(src: Chess, color: 'w' | 'b'): string | null {
+    const board = src.board();
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
         const p = board[r][c];
@@ -104,12 +114,13 @@ export default function App() {
   }
 
   const kingInCheck = useMemo(() => {
-    if (!game.isCheck()) return null;
-    const turn = game.turn() as 'w' | 'b';
-    const square = findKingSquare(turn);
+    const src = displayGame ?? game;
+    if (!src.isCheck()) return null;
+    const turn = src.turn() as 'w' | 'b';
+    const square = findKingSquare(src, turn);
     if (!square) return null;
     return { square, color: turn };
-  }, [game, history, reviewMode, reviewIndex]);
+  }, [game, displayGame, history, reviewMode, reviewIndex]);
 
   const pieceSetClass = 'piece-set-active-' + settings.pieceSet;
   const boardThinkingClass = isComputerThinking ? ' board-computer-thinking' : '';
@@ -155,6 +166,7 @@ export default function App() {
               isComputerThinking={isComputerThinking}
               lastMove={lastMove}
               kingInCheck={kingInCheck}
+              displayFen={displayFen}
             />
           </section>
 

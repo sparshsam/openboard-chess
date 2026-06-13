@@ -75,6 +75,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const [moveFens, setMoveFens] = useState<string[]>([game.fen()]);
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(-1);
+  // displayFen: when set, Board renders this historical position instead of the live game
+  const [displayFen, setDisplayFen] = useState<string | null>(null);
 
   // Move feedback analysis state
   const [moveFeedback, setMoveFeedback] = useState<Map<number, MoveFeedback>>(new Map());
@@ -87,6 +89,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const stockfishEngineRef = useRef<StockfishEngine | null>(null);
   const stockfishStateRef = useRef<StockfishEngineState>('idle');
   const liveFenRef = useRef<string>(game.fen());
+  const computerMoveActiveRef = useRef(false);
 
   // Keep track of FEN before each human move (for feedback computation)
   const preMoveFenRef = useRef<string | null>(null);
@@ -159,6 +162,14 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       },
       onBestMove: (move: StockfishMove) => {
         const g = gameRef.current;
+        // Ignore stale Stockfish results (e.g. from initial load analysis)
+        if (!computerMoveActiveRef.current) {
+          setStockfishProgress(null);
+          setIsComputerThinking(false);
+          return;
+        }
+        computerMoveActiveRef.current = false;
+
         if (g.turn() !== 'b' || g.isGameOver()) {
           setStockfishProgress(null);
           return;
@@ -184,8 +195,9 @@ export function useChessGame({ settings }: UseChessGameOptions) {
               else playMoveSound();
             }
           }
-        } catch (err) {
-          console.error('Failed to apply Stockfish move:', err);
+        } catch {
+          // Stale or invalid Stockfish result — log quietly, don't crash
+          console.warn('Stockfish returned unusable move (stale result)');
         } finally {
           setIsComputerThinking(false);
         }
@@ -222,6 +234,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   /** Async-based computer move using Stockfish + fallback */
   const scheduleComputerMoveViaStockfish = useCallback(async () => {
     setIsComputerThinking(true);
+    computerMoveActiveRef.current = true;
 
     try {
       const g = gameRef.current;
@@ -235,6 +248,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
         setSelectedSquare(null);
         setLegalMoves([]);
         updateState();
+        setIsComputerThinking(false);
+        computerMoveActiveRef.current = false;
       } else {
         // Stockfish path: configure engine, then call search().
         // The onBestMove callback (set during init) applies the result.
@@ -249,6 +264,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     } catch (err) {
       console.error('Computer move failed:', err);
       setIsComputerThinking(false);
+      computerMoveActiveRef.current = false;
     }
     // Note: setIsComputerThinking(false) is handled by the onBestMove callback
   }, [updateState]);
@@ -309,6 +325,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       stockfishEngineRef.current.stop();
     }
 
+    computerMoveActiveRef.current = false;
+
     game.reset();
     setSelectedSquare(null);
     setLegalMoves([]);
@@ -317,6 +335,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     setGameResult(null);
     setReviewMode(false);
     setReviewIndex(-1);
+    setDisplayFen(null);
     setStockfishProgress(null);
     setMoveFeedback(new Map());
     clearGame();
@@ -376,36 +395,28 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   // ── Move Review ─────────────────────────────────────────────
   const enterReviewMode = useCallback(() => {
     if (history.length === 0) return;
-    // Save live position so we can restore it on exit
+    // Save live position (never call game.load — we use displayFen instead)
     liveFenRef.current = game.fen();
     setReviewMode(true);
     setReviewIndex(history.length - 1);
-    // Load last position onto the board
-    const targetFen = moveFens[history.length];
-    if (targetFen) {
-      game.load(targetFen);
-      setFen(targetFen);
-    }
+    // Set display FEN so Board renders the historical position
+    setDisplayFen(moveFens[history.length] ?? game.fen());
   }, [history.length, moveFens, game]);
 
   const exitReviewMode = useCallback(() => {
     setReviewMode(false);
     setReviewIndex(-1);
-    // Restore the live position
-    const liveFen = liveFenRef.current;
-    game.load(liveFen);
-    setFen(liveFen);
-  }, [game]);
+    setDisplayFen(null); // Board falls back to live game — game was never mutated
+  }, []);
 
   const goToMove = useCallback(
     (index: number) => {
       if (index < -1 || index >= moveFens.length - 1) return;
       setReviewIndex(index);
       const targetFen = index === -1 ? moveFens[0] : moveFens[index + 1];
-      game.load(targetFen);
-      setFen(targetFen);
+      setDisplayFen(targetFen);
     },
-    [moveFens, game]
+    [moveFens]
   );
 
   // ── User interaction ───────────────────────────────────────────
@@ -501,6 +512,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
         setGameResult(null);
         setReviewMode(false);
         setReviewIndex(-1);
+        setDisplayFen(null);
         setMoveFeedback(new Map());
         updateState();
         afterUserMove(false);
@@ -537,6 +549,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     setMoveFens(rebuildFensFromHistory(game.history()));
     setReviewMode(false);
     setReviewIndex(-1);
+    setDisplayFen(null);
     updateState();
   }, [game, history.length, moveFens, updateState, gameResult]);
 
@@ -676,5 +689,6 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     enterReviewMode,
     exitReviewMode,
     goToMove,
+    displayFen,
   };
 }
