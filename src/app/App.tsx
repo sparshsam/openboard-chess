@@ -1,15 +1,14 @@
 import { useMemo, useState, useEffect } from 'react';
 import Board from '../components/Board/Board';
-import MoveHistory from '../components/Game/MoveHistory';
-import StatusBar from '../components/Game/StatusBar';
-import GameControls from '../components/GameControls/GameControls';
+import GamePanel from '../components/GamePanel/GamePanel';
 import PromotionDialog from '../components/PromotionDialog/PromotionDialog';
 import SettingsPanel from '../components/Settings/SettingsPanel';
-import CapturedPieces from '../components/CapturedPieces/CapturedPieces';
+import PlayerPanel from '../components/PlayerPanel/PlayerPanel';
 import { useChessGame } from '../hooks/useChessGame';
 import { useSettings } from '../hooks/useSettings';
 import { isDebugEnabled, getDebugInfo, type EngineDebugInfo } from '../chess/engineDebug';
 import './App.css';
+import '../components/GamePanel/GamePanel.css';
 import '../components/Settings/SettingsPanel.css';
 
 export default function App() {
@@ -27,7 +26,6 @@ export default function App() {
 
   const {
     game,
-    fen,
     history,
     status,
     selectedSquare,
@@ -37,22 +35,19 @@ export default function App() {
     gameResult,
     reviewMode,
     reviewIndex,
-    stockfishStatus,
-    stockfishError,
-    stockfishProgress,
     selectSquare,
     promote,
     cancelPromotion,
     newGame,
-    exportFen,
-    importFen,
     undoMove,
     resign,
-    exportPgn,
     capturedPieces,
     enterReviewMode,
     exitReviewMode,
     goToMove,
+    stockfishStatus,
+    stockfishError,
+    stockfishProgress,
   } = useChessGame({ settings });
 
   const [engineDebug, setEngineDebug] = useState<Partial<EngineDebugInfo> | null>(null);
@@ -93,53 +88,56 @@ export default function App() {
       </header>
 
       <main id="main-content" className="app-main">
-        <div className="game-layout">
-          <div className={'board-section' + boardThinkingClass}>
-            <CapturedPieces
+        <div className="game-layout" aria-label="Chess game layout">
+          <aside className="game-column game-column-left" aria-label="Player information">
+            <PlayerPanel
               whiteCaptured={captured.white}
               blackCaptured={captured.black}
+              gameMode={settings.gameMode}
+              turn={game.turn() as 'w' | 'b'}
+              status={status}
             />
+          </aside>
+
+          <section className={'board-section' + boardThinkingClass} aria-label="Chess board">
             <Board
               game={game}
               selectedSquare={selectedSquare}
               legalMoves={legalMoves}
               onSquareClick={selectSquare}
+              boardOrientation={settings.boardOrientation}
               boardTheme={settings.boardTheme}
               pieceSet={settings.pieceSet}
               isComputerThinking={isComputerThinking}
             />
-            <StatusBar
-              status={status}
-              fen={fen}
-              gameMode={settings.gameMode}
-              isComputerThinking={isComputerThinking}
-              stockfishStatus={stockfishStatus}
-              stockfishError={stockfishError}
-              stockfishProgress={stockfishProgress}
-              isNightmare={isNightmare}
-            />
-          </div>
+          </section>
 
-          <div className="sidebar">
-            <GameControls
-              onNewGame={newGame}
-              onExportFen={exportFen}
-              onImportFen={importFen}
-              onUndo={undoMove}
-              onResign={resign}
-              onExportPgn={exportPgn}
-              canUndo={canUndo}
-              canResign={canResign}
-            />
-            <MoveHistory
-              history={history}
-              reviewMode={reviewMode}
-              reviewIndex={reviewIndex}
-              onGoToMove={goToMove}
-              onEnterReview={enterReviewMode}
-              onExitReview={exitReviewMode}
-            />
-          </div>
+          <GamePanel
+            status={status}
+            gameMode={settings.gameMode}
+            isComputerThinking={isComputerThinking}
+            stockfishStatus={stockfishStatus}
+            stockfishError={stockfishError}
+            stockfishProgress={stockfishProgress}
+            isNightmare={isNightmare}
+            history={history}
+            reviewMode={reviewMode}
+            reviewIndex={reviewIndex}
+            onGoToMove={goToMove}
+            onEnterReview={enterReviewMode}
+            onExitReview={exitReviewMode}
+            onNewGame={newGame}
+            onUndo={undoMove}
+            onResign={resign}
+            canUndo={canUndo}
+            canResign={canResign}
+            boardOrientation={settings.boardOrientation}
+            onFlipBoard={() =>
+              setBoardOrientation(
+                settings.boardOrientation === 'white-bottom' ? 'flip-turn' : 'white-bottom'
+              )
+            }
+          />
         </div>
       </main>
 
@@ -172,10 +170,9 @@ export default function App() {
         } as React.CSSProperties}>
           {engineDebug.difficulty} | depth {engineDebug.depthReached}/{engineDebug.maxDepth} |
           {' '}{engineDebug.nodesSearched} nodes | score {engineDebug.bestScore}cp |
-          {' '}{engineDebug.openingBookHit ? '📖' : ''} {engineDebug.quiescenceUsed ? '🔍' : ''} {engineDebug.transpositionTableUsed ? '🗄️' : ''}
+          {' '}{engineDebug.openingBookHit ? '??' : ''} {engineDebug.quiescenceUsed ? '??' : ''} {engineDebug.transpositionTableUsed ? '???' : ''}
         </div>
       )}
     </div>
   );
 }
-
