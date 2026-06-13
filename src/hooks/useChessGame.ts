@@ -75,6 +75,8 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const [moveFens, setMoveFens] = useState<string[]>([game.fen()]);
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(-1);
+  // displayFen: when set, Board renders this historical position instead of the live game
+  const [displayFen, setDisplayFen] = useState<string | null>(null);
 
   // Move feedback analysis state
   const [moveFeedback, setMoveFeedback] = useState<Map<number, MoveFeedback>>(new Map());
@@ -317,6 +319,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     setGameResult(null);
     setReviewMode(false);
     setReviewIndex(-1);
+    setDisplayFen(null);
     setStockfishProgress(null);
     setMoveFeedback(new Map());
     clearGame();
@@ -376,36 +379,28 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   // ── Move Review ─────────────────────────────────────────────
   const enterReviewMode = useCallback(() => {
     if (history.length === 0) return;
-    // Save live position so we can restore it on exit
+    // Save live position (never call game.load — we use displayFen instead)
     liveFenRef.current = game.fen();
     setReviewMode(true);
     setReviewIndex(history.length - 1);
-    // Load last position onto the board
-    const targetFen = moveFens[history.length];
-    if (targetFen) {
-      game.load(targetFen);
-      setFen(targetFen);
-    }
+    // Set display FEN so Board renders the historical position
+    setDisplayFen(moveFens[history.length] ?? game.fen());
   }, [history.length, moveFens, game]);
 
   const exitReviewMode = useCallback(() => {
     setReviewMode(false);
     setReviewIndex(-1);
-    // Restore the live position
-    const liveFen = liveFenRef.current;
-    game.load(liveFen);
-    setFen(liveFen);
-  }, [game]);
+    setDisplayFen(null); // Board falls back to live game — game was never mutated
+  }, []);
 
   const goToMove = useCallback(
     (index: number) => {
       if (index < -1 || index >= moveFens.length - 1) return;
       setReviewIndex(index);
       const targetFen = index === -1 ? moveFens[0] : moveFens[index + 1];
-      game.load(targetFen);
-      setFen(targetFen);
+      setDisplayFen(targetFen);
     },
-    [moveFens, game]
+    [moveFens]
   );
 
   // ── User interaction ───────────────────────────────────────────
@@ -501,6 +496,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
         setGameResult(null);
         setReviewMode(false);
         setReviewIndex(-1);
+        setDisplayFen(null);
         setMoveFeedback(new Map());
         updateState();
         afterUserMove(false);
@@ -537,6 +533,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     setMoveFens(rebuildFensFromHistory(game.history()));
     setReviewMode(false);
     setReviewIndex(-1);
+    setDisplayFen(null);
     updateState();
   }, [game, history.length, moveFens, updateState, gameResult]);
 
@@ -676,5 +673,6 @@ export function useChessGame({ settings }: UseChessGameOptions) {
     enterReviewMode,
     exitReviewMode,
     goToMove,
+    displayFen,
   };
 }

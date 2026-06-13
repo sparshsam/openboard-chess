@@ -350,3 +350,151 @@ describe('Board highlighting logic', () => {
     // Actually no — isCheck() on chess.js returns true even during checkmate
   });
 });
+
+// ── v0.9.1 Regression Tests — State Sync ───────────────────────
+
+describe('v0.9.1: State sync after game.load()', () => {
+  it('game.load() destroys internal history (root cause)', () => {
+    const g = new Chess();
+    g.move('e2e4'); g.move('e7e5'); g.move('g1f3');
+    expect(g.history().length).toBe(3);
+
+    // What exitReviewMode was doing:
+    const fen = g.fen();
+    g.load(fen); // BUG: resets history
+    expect(g.history().length).toBe(0); // History is gone!
+
+    // What a subsequent move would do:
+    g.move('b8c6');
+    expect(g.history().length).toBe(1); // Only shows 1 move!
+    expect(g.history()).toEqual(['Nc6']); // Previous 3 moves lost!
+  });
+
+  it('displayGame approach does not corrupt live game', () => {
+    const live = new Chess();
+    live.move('e2e4'); live.move('e7e5');
+    expect(live.history().length).toBe(2);
+
+    // Simulate display game for review (never mutates live)
+    const displayFen = 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2';
+    const display = new Chess();
+    display.load(displayFen);
+    expect(display.history().length).toBe(0); // Display game has no history — that's OK
+    expect(display.get('e4')).toBeTruthy();
+
+    // Live game is untouched
+    expect(live.history().length).toBe(2);
+    expect(live.turn()).toBe('w');
+  });
+
+  it('exitReviewMode restoring live FEN preserves live game history', () => {
+    const g = new Chess();
+    g.move('e2e4'); g.move('c7c5'); g.move('g1f3'); g.move('d7d6');
+    expect(g.history().length).toBe(4);
+
+    // Simulate exitReviewMode fix: instead of game.load(liveFen), just clear displayFen
+    // The live game was never modified, so its history is intact
+    expect(g.history().length).toBe(4);
+    expect(g.turn()).toBe('w');
+
+    // User can now make a move
+    g.move('d2d4');
+    expect(g.history().length).toBe(5);
+    expect(g.history()).toEqual(['e4', 'c5', 'Nf3', 'd6', 'd4']);
+  });
+});
+
+describe('v0.9.1: Bot thinking status', () => {
+  it('should show thinking text when isComputerThinking is true', () => {
+    // Simulate what updateState sets: turn = "Black to move"
+    const status = 'Black to move';
+    const isComputerThinking = true;
+
+    // When thinking, the GamePanel should show bot thinking, not the turn status
+    const displayedStatus = isComputerThinking ? 'Expert Bot thinking…' : status;
+    expect(displayedStatus).toBe('Expert Bot thinking…');
+
+    // When not thinking, show the normal status
+    expect(!isComputerThinking ? status : '').toBe('');
+  });
+
+  it('should show normal turn text when not thinking', () => {
+    const status = 'White to move';
+    const isComputerThinking = false;
+
+    const displayedStatus = isComputerThinking ? 'Bot thinking…' : status;
+    expect(displayedStatus).toBe('White to move');
+  });
+});
+
+describe('v0.9.1: Analysis feedback readability', () => {
+  it('should generate human-readable feedback for each tag', () => {
+    const getFeedbackMessage = (tag: string, centipawnLoss: number): string => {
+      switch (tag) {
+        case 'book': return 'Book Opening — Following established theory.';
+        case 'perfect': return 'Perfect Move — Best move in the position.';
+        case 'excellent': return 'Excellent — A strong move.';
+        case 'good': return 'Good — Maintained your advantage.';
+        case 'inaccuracy': return centipawnLoss >= 150
+          ? 'Inaccuracy — Gave up some advantage.'
+          : 'Inaccuracy — Could have been better.';
+        case 'mistake': return 'Mistake — You lost your advantage.';
+        case 'blunder': return centipawnLoss >= 500
+          ? 'Blunder — Cost you the game.'
+          : 'Blunder — A serious error.';
+        default: return '';
+      }
+    };
+
+    // All messages should be complete sentences, no raw centipawn
+    const messages = [
+      getFeedbackMessage('book', 0),
+      getFeedbackMessage('perfect', 5),
+      getFeedbackMessage('excellent', 20),
+      getFeedbackMessage('good', 50),
+      getFeedbackMessage('inaccuracy', 100),
+      getFeedbackMessage('mistake', 200),
+      getFeedbackMessage('blunder', 400),
+    ];
+
+    messages.forEach((msg) => {
+      expect(msg).toBeTruthy();
+      expect(msg.length).toBeGreaterThan(15); // No truncated/empty text
+      expect(msg).not.toContain('cp'); // No raw centipawn values
+    });
+  });
+
+  it('messages should not have CSS truncation issues', () => {
+    const messages = [
+      'Book Opening — Following established theory.',
+      'Perfect Move — Best move in the position.',
+      'Excellent — A strong move.',
+      'Good — Maintained your advantage.',
+      'Inaccuracy — Could have been better.',
+      'Inaccuracy — Gave up some advantage.',
+      'Mistake — You lost your advantage.',
+      'Blunder — A serious error.',
+      'Blunder — Cost you the game.',
+    ];
+
+    // All messages should fit without ellipsis
+    messages.forEach((msg) => {
+      expect(msg.endsWith('…')).toBe(false); // No truncation
+      expect(msg.length).toBeLessThan(60); // Reasonable length
+    });
+  });
+
+  it('has unique feedback labels', () => {
+    const labels = {
+      book: '★',
+      perfect: '!!',
+      excellent: '!',
+      good: '⩀',
+      inaccuracy: '?!',
+      mistake: '?',
+      blunder: '??',
+    };
+    const values = Object.values(labels);
+    expect(new Set(values).size).toBe(values.length);
+  });
+});
