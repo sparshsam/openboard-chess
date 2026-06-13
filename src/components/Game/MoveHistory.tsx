@@ -112,6 +112,14 @@ export default function MoveHistory({
       <div className="review-controls">
         <button
           className="btn btn-sm btn-review-nav"
+          onClick={() => onGoToMove(0)}
+          disabled={!reviewMode || history.length === 0}
+          aria-label="First move"
+        >
+          &#x23EE;
+        </button>
+        <button
+          className="btn btn-sm btn-review-nav"
           onClick={() => onGoToMove(reviewIndex - 1)}
           disabled={!reviewMode || reviewIndex < 0}
           aria-label="Previous move"
@@ -125,6 +133,14 @@ export default function MoveHistory({
           aria-label="Next move"
         >
           &rarr;
+        </button>
+        <button
+          className="btn btn-sm btn-review-nav"
+          onClick={() => onGoToMove(history.length - 1)}
+          disabled={!reviewMode || history.length === 0}
+          aria-label="Last move"
+        >
+          &#x23ED;
         </button>
         {!reviewMode && history.length > 0 && (
           <button className="btn btn-sm btn-review" onClick={onEnterReview}>
@@ -140,22 +156,22 @@ export default function MoveHistory({
 function MoveFeedbackTag({ feedback }: { feedback: MoveFeedback | undefined }) {
   if (!feedback) return null;
 
-  const tagLabels: Record<string, { label: string; title: string }> = {
+  const tagConfig: Record<string, { label: string; title: string }> = {
     book: { label: '★', title: 'Book move' },
-    perfect: { label: '!!', title: 'Perfect move (0–10cp loss)' },
-    excellent: { label: '!', title: 'Excellent move (11–35cp loss)' },
-    good: { label: '⩀', title: 'Good move (36–80cp loss)' },
+    perfect: { label: '!!', title: `Perfect (0–10cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
+    excellent: { label: '!', title: `Excellent (11–35cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
+    good: { label: '?', title: `Good (36–80cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
     inaccuracy: { label: '?!', title: `Inaccuracy (81–150cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
     mistake: { label: '?', title: `Mistake (151–300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
     blunder: { label: '??', title: `Blunder (>300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
   };
 
-  const info = tagLabels[feedback.tag];
+  const info = tagConfig[feedback.tag];
   if (!info) return null;
 
   return (
     <span
-      className={`move-feedback-tag move-feedback-${feedback.tag}`}
+      className={`feedback-badge feedback-badge-${feedback.tag}`}
       title={info.title}
     >
       {info.label}

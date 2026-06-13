@@ -4,6 +4,7 @@ import GamePanel from '../components/GamePanel/GamePanel';
 import PromotionDialog from '../components/PromotionDialog/PromotionDialog';
 import SettingsPanel from '../components/Settings/SettingsPanel';
 import PlayerPanel from '../components/PlayerPanel/PlayerPanel';
+import GameEndModal from '../components/GameEndModal/GameEndModal';
 import { useChessGame } from '../hooks/useChessGame';
 import { useSettings } from '../hooks/useSettings';
 import { isDebugEnabled, getDebugInfo, type EngineDebugInfo } from '../chess/engineDebug';
@@ -64,8 +65,45 @@ export default function App() {
 
   const captured = useMemo(() => capturedPieces(), [capturedPieces]);
 
+  const materialAdvantage = useMemo(() => {
+    const values = { q: 9, r: 5, b: 3, n: 3, p: 1 };
+    let score = 0;
+    for (const p of captured.white) score += values[p as keyof typeof values] || 0;
+    for (const p of captured.black) score -= values[p as keyof typeof values] || 0;
+    return score;
+  }, [captured]);
+
   const canUndo = history.length > 0;
   const canResign = !gameResult && !game.isGameOver() && history.length > 0;
+
+  // ── Last move & check highlighting ──
+  const lastMove = useMemo(() => {
+    const verbose = game.history({ verbose: true });
+    if (verbose.length === 0) return null;
+    const last = verbose[verbose.length - 1];
+    return { from: last.from, to: last.to };
+  }, [game, history]);
+
+  function findKingSquare(color: 'w' | 'b'): string | null {
+    const board = game.board();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        if (p && p.type === 'k' && p.color === color) {
+          return 'abcdefgh'[c] + (8 - r);
+        }
+      }
+    }
+    return null;
+  }
+
+  const kingInCheck = useMemo(() => {
+    if (!game.isCheck()) return null;
+    const turn = game.turn() as 'w' | 'b';
+    const square = findKingSquare(turn);
+    if (!square) return null;
+    return { square, color: turn };
+  }, [game, history]);
 
   const pieceSetClass = 'piece-set-active-' + settings.pieceSet;
   const boardThinkingClass = isComputerThinking ? ' board-computer-thinking' : '';
@@ -95,6 +133,7 @@ export default function App() {
               gameMode={settings.gameMode}
               turn={game.turn() as 'w' | 'b'}
               status={status}
+              materialAdvantage={materialAdvantage}
             />
           </aside>
 
@@ -108,12 +147,15 @@ export default function App() {
               boardTheme={settings.boardTheme}
               pieceSet={settings.pieceSet}
               isComputerThinking={isComputerThinking}
+              lastMove={lastMove}
+              kingInCheck={kingInCheck}
             />
           </section>
 
           <GamePanel
             status={status}
             gameMode={settings.gameMode}
+            difficulty={settings.difficulty}
             isComputerThinking={isComputerThinking}
             stockfishStatus={stockfishStatus}
             stockfishError={stockfishError}
@@ -147,6 +189,12 @@ export default function App() {
           onCancel={cancelPromotion}
         />
       )}
+
+      <GameEndModal
+        result={gameResult}
+        onNewGame={newGame}
+        onEnterReview={enterReviewMode}
+      />
 
       <SettingsPanel
         settings={settings}

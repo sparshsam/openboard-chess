@@ -15,6 +15,8 @@ interface BoardProps {
   boardTheme?: BoardTheme;
   pieceSet?: PieceSet;
   isComputerThinking?: boolean;
+  lastMove?: { from: string; to: string } | null;
+  kingInCheck?: { square: string; color: 'w' | 'b' } | null;
 }
 
 export default function Board({
@@ -26,6 +28,8 @@ export default function Board({
   boardTheme = 'classic',
   pieceSet = 'merida',
   isComputerThinking = false,
+  lastMove = null,
+  kingInCheck = null,
 }: BoardProps) {
   const currentTurn: Color = game.turn();
   const flipped = boardOrientation === 'flip-turn' && currentTurn === 'b';
@@ -46,6 +50,8 @@ export default function Board({
       const piece = game.get(square) as PieceInfo | null;
       const isSelected = selectedSquare === square;
       const isLegalMove = legalMoves.includes(square);
+      const isLastMove = lastMove !== null && (square === lastMove.from || square === lastMove.to);
+      const isCheck = kingInCheck !== null && square === kingInCheck.square;
 
       // Rank labels on left edge (file a)
       const rankLabel = fi === 0 ? rank : null;
@@ -60,6 +66,8 @@ export default function Board({
           isLight={isLight}
           isSelected={isSelected}
           isLegalMove={isLegalMove}
+          isLastMove={isLastMove}
+          isCheck={isCheck}
           rankLabel={rankLabel}
           fileLabel={fileLabel}
           onClick={() => onSquareClick(square)}

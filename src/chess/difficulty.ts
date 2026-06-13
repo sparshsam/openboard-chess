@@ -37,7 +37,7 @@ export const EXPERT_DEPTH = 5;
 
 export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
   beginner: {
-    label: 'Beginner',
+    label: 'Beginner Bot',
     rating: 800,
     depth: 0,
     randomBlunders: false,
@@ -50,7 +50,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     description: 'Stockfish at Skill Level 1 with short think time. Very weak but plays real chess without random blunders.',
   },
   casual: {
-    label: 'Casual',
+    label: 'Casual Bot',
     rating: 1000,
     depth: 1,
     randomBlunders: false,
@@ -63,7 +63,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     description: 'Stockfish at Skill Level 5 with moderate think time. Makes reasonable moves but misses deeper tactics.',
   },
   club: {
-    label: 'Club',
+    label: 'Club Bot',
     rating: 1400,
     depth: 3,
     randomBlunders: false,
@@ -76,7 +76,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     description: 'Stockfish at Skill Level 10. Solid club-level play with good tactical awareness.',
   },
   expert: {
-    label: 'Expert',
+    label: 'Expert Bot',
     rating: 1700,
     depth: 5,
     randomBlunders: false,
@@ -89,7 +89,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     description: 'Stockfish at Skill Level 16 with longer think time. Strong positional and tactical play.',
   },
   nightmare: {
-    label: 'Nightmare',
+    label: 'Nightmare Bot',
     rating: 2000,
     depth: 0,
     randomBlunders: false,
@@ -105,11 +105,11 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
 };
 
 export const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
-  { value: 'beginner', label: 'Beginner (~800)' },
-  { value: 'casual', label: 'Casual (~1000)' },
-  { value: 'club', label: 'Club (~1400)' },
-  { value: 'expert', label: 'Expert (~1700)' },
-  { value: 'nightmare', label: 'Nightmare (~2000)' },
+  { value: 'beginner', label: 'Beginner Bot (~800)' },
+  { value: 'casual', label: 'Casual Bot (~1000)' },
+  { value: 'club', label: 'Club Bot (~1400)' },
+  { value: 'expert', label: 'Expert Bot (~1700)' },
+  { value: 'nightmare', label: 'Nightmare Bot (~2000)' },
 ];
 
 /** Disclaimer text shown near difficulty selector */

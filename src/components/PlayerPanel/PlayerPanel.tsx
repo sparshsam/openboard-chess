@@ -15,6 +15,7 @@ interface PlayerPanelProps {
   gameMode: GameMode;
   turn: 'w' | 'b';
   status: string;
+  materialAdvantage: number;
 }
 
 export default function PlayerPanel({
@@ -23,6 +24,7 @@ export default function PlayerPanel({
   gameMode,
   turn,
   status,
+  materialAdvantage,
 }: PlayerPanelProps) {
   const whiteName = gameMode === 'computer' ? 'User' : 'Player 1';
   const blackName = gameMode === 'computer' ? 'Computer' : 'Player 2';
@@ -69,6 +71,12 @@ export default function PlayerPanel({
               ))
             )}
           </span>
+          {color === 'b' && materialAdvantage > 0 && (
+            <span className="material-advantage positive">+{materialAdvantage}</span>
+          )}
+          {color === 'w' && materialAdvantage < 0 && (
+            <span className="material-advantage negative">&minus;{Math.abs(materialAdvantage)}</span>
+          )}
         </div>
         {isActive && <div className="player-to-move">{status}</div>}
       </div>
