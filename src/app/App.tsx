@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import Board from '../components/Board/Board';
-import MoveHistory from '../components/Game/MoveHistory';
-import GameControls from '../components/GameControls/GameControls';
+import GamePanel from '../components/GamePanel/GamePanel';
 import PromotionDialog from '../components/PromotionDialog/PromotionDialog';
 import SettingsPanel from '../components/Settings/SettingsPanel';
 import PlayerPanel from '../components/PlayerPanel/PlayerPanel';
@@ -9,6 +8,7 @@ import { useChessGame } from '../hooks/useChessGame';
 import { useSettings } from '../hooks/useSettings';
 import { isDebugEnabled, getDebugInfo, type EngineDebugInfo } from '../chess/engineDebug';
 import './App.css';
+import '../components/GamePanel/GamePanel.css';
 import '../components/Settings/SettingsPanel.css';
 
 export default function App() {
@@ -39,11 +39,8 @@ export default function App() {
     promote,
     cancelPromotion,
     newGame,
-    exportFen,
-    importFen,
     undoMove,
     resign,
-    exportPgn,
     capturedPieces,
     enterReviewMode,
     exitReviewMode,
@@ -110,30 +107,32 @@ export default function App() {
             />
           </section>
 
-          <aside className="game-column game-column-right" aria-label="Moves and actions">
-            <MoveHistory
-              history={history}
-              reviewMode={reviewMode}
-              reviewIndex={reviewIndex}
-              onGoToMove={goToMove}
-              onEnterReview={enterReviewMode}
-              onExitReview={exitReviewMode}
-            />
-            <section className="analysis-placeholder" aria-label="Future analysis placeholder">
-              <h2 className="panel-title">Analysis</h2>
-              <p>Evaluation and hints will appear here in a future version.</p>
-            </section>
-            <GameControls
-              onNewGame={newGame}
-              onExportFen={exportFen}
-              onImportFen={importFen}
-              onUndo={undoMove}
-              onResign={resign}
-              onExportPgn={exportPgn}
-              canUndo={canUndo}
-              canResign={canResign}
-            />
-          </aside>
+          <GamePanel
+            status={status}
+            gameMode={settings.gameMode}
+            isComputerThinking={isComputerThinking}
+            stockfishStatus={stockfishStatus}
+            stockfishError={stockfishError}
+            stockfishProgress={stockfishProgress}
+            isNightmare={isNightmare}
+            history={history}
+            reviewMode={reviewMode}
+            reviewIndex={reviewIndex}
+            onGoToMove={goToMove}
+            onEnterReview={enterReviewMode}
+            onExitReview={exitReviewMode}
+            onNewGame={newGame}
+            onUndo={undoMove}
+            onResign={resign}
+            canUndo={canUndo}
+            canResign={canResign}
+            boardOrientation={settings.boardOrientation}
+            onFlipBoard={() =>
+              setBoardOrientation(
+                settings.boardOrientation === 'white-bottom' ? 'flip-turn' : 'white-bottom'
+              )
+            }
+          />
         </div>
       </main>
 
