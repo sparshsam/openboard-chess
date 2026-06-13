@@ -86,6 +86,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   const computerMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stockfishEngineRef = useRef<StockfishEngine | null>(null);
   const stockfishStateRef = useRef<StockfishEngineState>('idle');
+  const liveFenRef = useRef<string>(game.fen());
 
   // Keep track of FEN before each human move (for feedback computation)
   const preMoveFenRef = useRef<string | null>(null);
@@ -113,8 +114,11 @@ export function useChessGame({ settings }: UseChessGameOptions) {
 
     if (game.isCheckmate()) {
       msg = `Checkmate! ${turn === 'White' ? 'Black' : 'White'} wins!`;
+      const winner = game.turn() === 'w' ? 'b' : 'w';
+      setGameResult({ winner, reason: 'checkmate' });
     } else if (game.isStalemate()) {
       msg = 'Stalemate! The game is a draw.';
+      setGameResult({ winner: 'w', reason: 'draw' });
     } else if (game.isDraw()) {
       if (game.isInsufficientMaterial()) {
         msg = 'Draw due to insufficient material.';
@@ -123,6 +127,7 @@ export function useChessGame({ settings }: UseChessGameOptions) {
       } else {
         msg = 'Draw!';
       }
+      setGameResult({ winner: 'w', reason: 'draw' });
     } else if (game.isCheck()) {
       msg = `${turn} is in check`;
     }
@@ -371,27 +376,36 @@ export function useChessGame({ settings }: UseChessGameOptions) {
   // ── Move Review ─────────────────────────────────────────────
   const enterReviewMode = useCallback(() => {
     if (history.length === 0) return;
+    // Save live position so we can restore it on exit
+    liveFenRef.current = game.fen();
     setReviewMode(true);
     setReviewIndex(history.length - 1);
-  }, [history.length]);
+    // Load last position onto the board
+    const targetFen = moveFens[history.length];
+    if (targetFen) {
+      game.load(targetFen);
+      setFen(targetFen);
+    }
+  }, [history.length, moveFens, game]);
 
   const exitReviewMode = useCallback(() => {
     setReviewMode(false);
     setReviewIndex(-1);
-    setFen(game.fen());
+    // Restore the live position
+    const liveFen = liveFenRef.current;
+    game.load(liveFen);
+    setFen(liveFen);
   }, [game]);
 
   const goToMove = useCallback(
     (index: number) => {
       if (index < -1 || index >= moveFens.length - 1) return;
       setReviewIndex(index);
-      if (index === -1) {
-        setFen(moveFens[0]);
-      } else {
-        setFen(moveFens[index + 1]);
-      }
+      const targetFen = index === -1 ? moveFens[0] : moveFens[index + 1];
+      game.load(targetFen);
+      setFen(targetFen);
     },
-    [moveFens]
+    [moveFens, game]
   );
 
   // ── User interaction ───────────────────────────────────────────

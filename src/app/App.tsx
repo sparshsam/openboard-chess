@@ -78,11 +78,17 @@ export default function App() {
 
   // ── Last move & check highlighting ──
   const lastMove = useMemo(() => {
+    if (reviewMode && reviewIndex >= 0 && reviewIndex < history.length) {
+      const uci = history[reviewIndex];
+      if (uci && uci.length >= 4) {
+        return { from: uci.substring(0, 2), to: uci.substring(2, 4) };
+      }
+    }
     const verbose = game.history({ verbose: true });
     if (verbose.length === 0) return null;
     const last = verbose[verbose.length - 1];
     return { from: last.from, to: last.to };
-  }, [game, history]);
+  }, [game, history, reviewMode, reviewIndex]);
 
   function findKingSquare(color: 'w' | 'b'): string | null {
     const board = game.board();
@@ -103,7 +109,7 @@ export default function App() {
     const square = findKingSquare(turn);
     if (!square) return null;
     return { square, color: turn };
-  }, [game, history]);
+  }, [game, history, reviewMode, reviewIndex]);
 
   const pieceSetClass = 'piece-set-active-' + settings.pieceSet;
   const boardThinkingClass = isComputerThinking ? ' board-computer-thinking' : '';

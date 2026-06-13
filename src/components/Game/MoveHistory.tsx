@@ -160,7 +160,7 @@ function MoveFeedbackTag({ feedback }: { feedback: MoveFeedback | undefined }) {
     book: { label: '★', title: 'Book move' },
     perfect: { label: '!!', title: `Perfect (0–10cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
     excellent: { label: '!', title: `Excellent (11–35cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
-    good: { label: '?', title: `Good (36–80cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
+    good: { label: '⩀', title: `Good (36–80cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
     inaccuracy: { label: '?!', title: `Inaccuracy (81–150cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
     mistake: { label: '?', title: `Mistake (151–300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
     blunder: { label: '??', title: `Blunder (>300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
