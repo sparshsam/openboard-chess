@@ -1,6 +1,6 @@
 /**
  * Stockfish WASM engine wrapper.
- * Dynamically loaded (script tag) only when Nightmare difficulty is selected.
+ * Dynamically loaded (script tag) when computer mode is selected.
  * Uses the UCI protocol for communication.
  *
  * The stockfish.js / stockfish.wasm / stockfish.worker.js files are served
@@ -12,6 +12,17 @@ export interface StockfishMove {
   from: string;
   to: string;
   promotion?: string;
+}
+
+export interface StockfishAnalysis {
+  /** Score in centipawns (positive = good for side to move) */
+  score: number;
+  /** Best move in UCI format */
+  bestMove: string | null;
+  /** Depth reached */
+  depth: number;
+  /** Principal variation (space-separated UCI moves) */
+  pv?: string;
 }
 
 export type StockfishEngineState =
@@ -114,19 +125,27 @@ function loadStockfishScript(): Promise<SFHandle> {
   });
 }
 
+/**
+ * Default evaluation depth for analyzing human moves.
+ * Fast enough to not block the UI while being deep enough for good feedback.
+ */
+const EVALUATION_DEPTH = 12;
+
 export class StockfishEngine {
   private sf: SFHandle | null = null;
   private state: StockfishEngineState = 'idle';
   private callbacks: StockfishCallbacks | null = null;
   private uciReady = false;
+  private currentSkillLevel = 20;
+  private currentThinkTimeMs = 2000;
 
-  /** Initialize Stockfish — called when Nightmare difficulty is selected */
+  /** Initialize Stockfish — called when computer mode is selected */
   async init(callbacks: StockfishCallbacks): Promise<void> {
     this.callbacks = callbacks;
     this.setState('loading');
 
     try {
-      // Load Stockfish via dynamic script tag — only happens when Nightmare is selected
+      // Load Stockfish via dynamic script tag
       this.sf = await loadStockfishScript();
 
       this.sf.addMessageListener((line: string) => {
@@ -139,10 +158,10 @@ export class StockfishEngine {
       // Wait for uciok
       await this.waitForMessage('uciok');
 
-      // Configure
+      // Configure base options
       this.sf.postMessage('setoption name Hash value 16');
       this.sf.postMessage('setoption name Threads value 1');
-      this.sf.postMessage('isready');
+      this.isready();
 
       await this.waitForMessage('readyok');
 
@@ -156,16 +175,83 @@ export class StockfishEngine {
     }
   }
 
+  /** Set Stockfish skill level (0 = weakest, 20 = strongest) */
+  setSkillLevel(level: number): void {
+    if (!this.sf || !this.uciReady) return;
+    const clamped = Math.max(0, Math.min(20, Math.round(level)));
+    this.currentSkillLevel = clamped;
+    this.sf.postMessage(`setoption name Skill Level value ${clamped}`);
+    this.isready();
+  }
+
+  /** Get the current skill level */
+  get skillLevel(): number {
+    return this.currentSkillLevel;
+  }
+
+  /** Set think time for computer moves (ms) */
+  setThinkTime(ms: number): void {
+    this.currentThinkTimeMs = Math.max(50, Math.min(30000, ms));
+  }
+
+  /** Get the current think time */
+  get thinkTimeMs(): number {
+    return this.currentThinkTimeMs;
+  }
+
+  /** Send isready and wait for readyok */
+  private isready(): void {
+    this.sf?.postMessage('isready');
+  }
+
   /** Start searching for the best move in a position */
-  search(fen: string, thinkTimeMs: number = 2000): void {
+  search(fen: string, thinkTimeMs?: number): void {
     if (this.state !== 'ready' || !this.sf) {
       this.callbacks?.onError('Engine not ready');
       return;
     }
 
+    const time = thinkTimeMs ?? this.currentThinkTimeMs;
     this.setState('searching');
     this.sf.postMessage(`position fen ${fen}`);
-    this.sf.postMessage(`go movetime ${thinkTimeMs}`);
+    this.sf.postMessage(`go movetime ${time}`);
+  }
+
+  /**
+   * Analyze a position and return evaluation + best move.
+   * Resolves when analysis completes.
+   */
+  analyze(fen: string, depth: number = EVALUATION_DEPTH): Promise<StockfishAnalysis> {
+    return new Promise((resolve, reject) => {
+      if (!this.sf || !this.uciReady) {
+        reject(new Error('Engine not ready'));
+        return;
+      }
+
+      const handler = (line: string) => {
+        if (line.startsWith('bestmove')) {
+          try {
+            this.sf!.removeMessageListener(handler);
+          } catch { /* ignore */ }
+
+          const parts = line.split(' ');
+          const moveStr = parts[1];
+          const bestMove = moveStr && moveStr !== '(none)' ? moveStr : null;
+          resolve({ score: this.lastScore, bestMove, depth: this.lastDepth, pv: this.lastPv });
+        }
+      };
+
+      this.sf.addMessageListener(handler);
+
+      // Fallback timeout
+      setTimeout(() => {
+        try { this.sf!.removeMessageListener(handler); } catch { /* ignore */ }
+        resolve({ score: this.lastScore, bestMove: this.lastBestMoveUci, depth: this.lastDepth, pv: this.lastPv });
+      }, (depth * 100) + 2000);
+
+      this.sf.postMessage(`position fen ${fen}`);
+      this.sf.postMessage(`go depth ${depth}`);
+    });
   }
 
   /** Stop the current search */
@@ -193,6 +279,13 @@ export class StockfishEngine {
     return this.state;
   }
 
+  // ── Internal state trackers for analysis ──────
+
+  private lastScore = 0;
+  private lastDepth = 0;
+  private lastPv: string | undefined;
+  private lastBestMoveUci: string | null = null;
+
   private setState(state: StockfishEngineState): void {
     this.state = state;
     this.callbacks?.onStateChange(state);
@@ -203,6 +296,7 @@ export class StockfishEngine {
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       const moveStr = parts[1]; // e.g., "e2e4"
+      this.lastBestMoveUci = moveStr && moveStr !== '(none)' ? moveStr : null;
       if (!moveStr || moveStr === '(none)') {
         this.setState('ready');
         return;
@@ -223,24 +317,33 @@ export class StockfishEngine {
       const scoreMatch = line.match(/score cp (-?\d+)/);
       const mateMatch = line.match(/score mate (-?\d+)/);
       const pvMatch = line.match(/pv (.+)/);
+      const multipvMatch = line.match(/multipv (\d+)/);
 
-      if (depthMatch) {
-        const depth = parseInt(depthMatch[1], 10);
-        let score = 0;
+      // Only track primary PV (multipv 1 or no multipv)
+      if (!multipvMatch || multipvMatch[1] === '1') {
+        if (depthMatch) {
+          const depth = parseInt(depthMatch[1], 10);
+          let score = 0;
 
-        if (scoreMatch) {
-          score = parseInt(scoreMatch[1], 10);
-        } else if (mateMatch) {
-          // Convert mate score to a large centipawn value
-          const mateIn = parseInt(mateMatch[1], 10);
-          score = mateIn > 0 ? 100000 - mateIn : -100000 - mateIn;
+          if (scoreMatch) {
+            score = parseInt(scoreMatch[1], 10);
+          } else if (mateMatch) {
+            // Convert mate score to a large centipawn value
+            const mateIn = parseInt(mateMatch[1], 10);
+            // Positive mate score = we deliver mate, negative = opponent delivers
+            score = mateIn > 0 ? 100000 - mateIn : -100000 - mateIn;
+          }
+
+          this.lastScore = score;
+          this.lastDepth = depth;
+          this.lastPv = pvMatch?.[1];
+
+          this.callbacks?.onProgress?.({
+            depth,
+            score,
+            pv: pvMatch?.[1],
+          });
         }
-
-        this.callbacks?.onProgress?.({
-          depth,
-          score,
-          pv: pvMatch?.[1],
-        });
       }
     }
   }

@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
+import type { MoveFeedback } from '../../types';
 
 interface MoveHistoryProps {
   history: string[];
   reviewMode: boolean;
   reviewIndex: number;
+  moveFeedback: Map<number, MoveFeedback>;
   onGoToMove: (index: number) => void;
   onEnterReview: () => void;
   onExitReview: () => void;
@@ -13,6 +15,7 @@ export default function MoveHistory({
   history,
   reviewMode,
   reviewIndex,
+  moveFeedback,
   onGoToMove,
   onEnterReview,
   onExitReview,
@@ -82,6 +85,7 @@ export default function MoveHistory({
               }}
             >
               {row.white}
+              <MoveFeedbackTag feedback={moveFeedback.get(row.whiteIndex)} />
             </span>
             {row.black !== undefined && (
               <span
@@ -96,6 +100,9 @@ export default function MoveHistory({
                 }}
               >
                 {row.black}
+                {row.blackIndex !== undefined && (
+                  <MoveFeedbackTag feedback={moveFeedback.get(row.blackIndex)} />
+                )}
               </span>
             )}
           </div>
@@ -103,6 +110,14 @@ export default function MoveHistory({
       </div>
 
       <div className="review-controls">
+        <button
+          className="btn btn-sm btn-review-nav"
+          onClick={() => onGoToMove(0)}
+          disabled={!reviewMode || history.length === 0}
+          aria-label="First move"
+        >
+          &#x23EE;
+        </button>
         <button
           className="btn btn-sm btn-review-nav"
           onClick={() => onGoToMove(reviewIndex - 1)}
@@ -119,6 +134,14 @@ export default function MoveHistory({
         >
           &rarr;
         </button>
+        <button
+          className="btn btn-sm btn-review-nav"
+          onClick={() => onGoToMove(history.length - 1)}
+          disabled={!reviewMode || history.length === 0}
+          aria-label="Last move"
+        >
+          &#x23ED;
+        </button>
         {!reviewMode && history.length > 0 && (
           <button className="btn btn-sm btn-review" onClick={onEnterReview}>
             Review
@@ -126,5 +149,32 @@ export default function MoveHistory({
         )}
       </div>
     </div>
+  );
+}
+
+/** Inline feedback tag rendered next to a move */
+function MoveFeedbackTag({ feedback }: { feedback: MoveFeedback | undefined }) {
+  if (!feedback) return null;
+
+  const tagConfig: Record<string, { label: string; title: string }> = {
+    book: { label: '★', title: 'Book move' },
+    perfect: { label: '!!', title: `Perfect (0–10cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
+    excellent: { label: '!', title: `Excellent (11–35cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
+    good: { label: '⩀', title: `Good (36–80cp loss, ${Math.round(feedback.centipawnLoss)}cp)` },
+    inaccuracy: { label: '?!', title: `Inaccuracy (81–150cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
+    mistake: { label: '?', title: `Mistake (151–300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
+    blunder: { label: '??', title: `Blunder (>300cp, ${Math.round(feedback.centipawnLoss)}cp loss)` },
+  };
+
+  const info = tagConfig[feedback.tag];
+  if (!info) return null;
+
+  return (
+    <span
+      className={`feedback-badge feedback-badge-${feedback.tag}`}
+      title={info.title}
+    >
+      {info.label}
+    </span>
   );
 }

@@ -32,6 +32,8 @@ interface SquareProps {
   isLight: boolean;
   isSelected: boolean;
   isLegalMove: boolean;
+  isLastMove: boolean;
+  isCheck: boolean;
   rankLabel: string | null;
   fileLabel: string | null;
   onClick: () => void;
@@ -44,6 +46,8 @@ export default function Square({
   isLight,
   isSelected,
   isLegalMove,
+  isLastMove,
+  isCheck,
   rankLabel,
   fileLabel,
   onClick,
@@ -51,6 +55,8 @@ export default function Square({
 }: SquareProps) {
   const colorClass = isLight ? 'square-light' : 'square-dark';
   const selectedClass = isSelected ? ' square-selected' : '';
+  const lastMoveClass = isLastMove ? ' square-last-move' : '';
+  const checkClass = isCheck ? ' square-check' : '';
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -62,7 +68,7 @@ export default function Square({
 
   return (
     <div
-      className={'square ' + colorClass + selectedClass}
+      className={'square ' + colorClass + selectedClass + lastMoveClass + checkClass}
       data-square={square}
       onClick={onClick}
       role="gridcell"

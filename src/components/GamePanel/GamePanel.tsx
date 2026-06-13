@@ -1,23 +1,27 @@
 import { useState } from 'react';
 import MoveHistory from '../Game/MoveHistory';
 import ConfirmDialog from '../ConfirmDialog/ConfirmDialog';
-import type { StockfishStatus } from '../../types';
+import type { StockfishStatus, MoveFeedback } from '../../types';
+import type { Difficulty } from '../../chess/difficulty';
+import { DIFFICULTIES } from '../../chess/difficulty';
+import { detectOpening } from '../../chess/openingDetection';
 import './GamePanel.css';
 
 interface GamePanelProps {
   /* Status */
   status: string;
   gameMode: 'computer' | 'local';
+  difficulty?: Difficulty;
   isComputerThinking: boolean;
   stockfishStatus?: StockfishStatus;
   stockfishError?: string | null;
   stockfishProgress?: { depth: number; score: number } | null;
-  isNightmare?: boolean;
 
   /* Move History */
   history: string[];
   reviewMode: boolean;
   reviewIndex: number;
+  moveFeedback: Map<number, MoveFeedback>;
   onGoToMove: (index: number) => void;
   onEnterReview: () => void;
   onExitReview: () => void;
@@ -37,14 +41,15 @@ interface GamePanelProps {
 export default function GamePanel({
   status,
   gameMode,
+  difficulty,
   isComputerThinking,
   stockfishStatus,
   stockfishError,
   stockfishProgress,
-  isNightmare,
   history,
   reviewMode,
   reviewIndex,
+  moveFeedback,
   onGoToMove,
   onEnterReview,
   onExitReview,
@@ -59,17 +64,51 @@ export default function GamePanel({
   const [showResignConfirm, setShowResignConfirm] = useState(false);
 
   // ── Status helper ──────────────────────────────────────────────
-  const modeLabel = gameMode === 'computer' ? 'Computer' : 'Local 2P';
+  const modeLabel = gameMode === 'computer'
+    ? (difficulty ? DIFFICULTIES[difficulty].label : 'Computer')
+    : 'Local 2P';
+
+  /** Generate human-friendly analysis feedback text */
+  const getFeedbackMessage = (tag: string, centipawnLoss: number): string => {
+    switch (tag) {
+      case 'book':
+        return 'Book Opening — Following established theory.';
+      case 'perfect':
+        return 'Perfect Move — Best move in the position.';
+      case 'excellent':
+        return 'Excellent — A strong move.';
+      case 'good':
+        return 'Good — Maintained your advantage.';
+      case 'inaccuracy':
+        if (centipawnLoss >= 150) {
+          return 'Inaccuracy — Gave up some advantage.';
+        }
+        return 'Inaccuracy — Could have been better.';
+      case 'mistake':
+        return 'Mistake — You lost your advantage.';
+      case 'blunder':
+        if (centipawnLoss >= 500) {
+          return 'Blunder — Cost you the game.';
+        }
+        return 'Blunder — A serious error.';
+      default:
+        return '';
+    }
+  };
+
+  /** Detect opening name from history */
+  const openingName = history.length >= 2 ? detectOpening(history) : null;
   const getThinkingLabel = () => {
     if (!isComputerThinking) return '';
-    if (isNightmare && stockfishStatus === 'loading') return ' (Loading…)';
-    if (isNightmare && stockfishProgress) {
+    const isSfReady = stockfishStatus === 'ready' || stockfishStatus === 'loading';
+    if (isSfReady && stockfishStatus === 'loading') return ' (Loading…)';
+    if (isSfReady && stockfishProgress) {
       const s = stockfishProgress.score >= 0
         ? `+${(stockfishProgress.score / 100).toFixed(2)}`
         : `${(stockfishProgress.score / 100).toFixed(2)}`;
       return ` (d${stockfishProgress.depth} | ${s})`;
     }
-    if (isNightmare && stockfishStatus === 'ready') return ' (thinking)';
+    if (stockfishStatus === 'ready') return ' (thinking)';
     if (stockfishStatus === 'error') return ' (engine error)';
     return '';
   };
@@ -99,6 +138,7 @@ export default function GamePanel({
             history={history}
             reviewMode={reviewMode}
             reviewIndex={reviewIndex}
+            moveFeedback={moveFeedback}
             onGoToMove={onGoToMove}
             onEnterReview={onEnterReview}
             onExitReview={onExitReview}
@@ -106,12 +146,42 @@ export default function GamePanel({
         </div>
       </div>
 
-      {/* ── 2. Analysis (placeholder) ──────────────────────── */}
+      {/* ── 2. Analysis ────────────────────────────────────── */}
       <div className="panel-section panel-analysis">
         <h3 className="panel-section-title">Analysis</h3>
-        <p className="panel-analysis-placeholder">
-          Engine analysis coming soon
-        </p>
+        {openingName && (
+          <div className="analysis-opening">
+            <span className="analysis-opening-badge">Opening</span>
+            <span className="analysis-opening-name">{openingName}</span>
+          </div>
+        )}
+        {moveFeedback.size > 0 && (
+          <div className="analysis-feedback-list">
+            {Array.from(moveFeedback.values())
+              .filter((f) => f.moveIndex >= 0)
+              .slice(-10)
+              .reverse()
+              .map((f) => (
+                <div key={f.moveIndex} className={`analysis-feedback-item tag-${f.tag}`}>
+                  <span className="feedback-move-num">#{f.moveIndex + 1}</span>
+                  <span className="feedback-tag">{f.tag}</span>
+                  <span className="feedback-message">
+                    {getFeedbackMessage(f.tag, f.centipawnLoss)}
+                  </span>
+                  {f.centipawnLoss > 0 && (
+                    <span className="feedback-cl">
+                      {'−' + f.centipawnLoss.toFixed(1)}cp
+                    </span>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+        {moveFeedback.size === 0 && !openingName && (
+          <p className="panel-analysis-placeholder">
+            Move quality analysis after your moves
+          </p>
+        )}
       </div>
 
       {/* ── 3. Game Actions ────────────────────────────────── */}
